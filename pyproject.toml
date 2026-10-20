@@ -1,0 +1,52 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "at3_crypto"
+version = "0.0.1"
+description = "AT3 crypto market forecasting experiments (36120 AML)"
+authors = [
+  { name = "Group 08" },
+]
+
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    
+]
+dependencies = [
+    "joblib==1.5.3",
+    "jupyterlab==4.6.1",
+    "lightgbm==4.6.0",
+    "lime==0.2.0.1",
+    "loguru",
+    "matplotlib==3.11.0",
+    "optuna==4.9.0",
+    "pandas==2.2.2",
+    "pip",
+    "pytest",
+    "python-dotenv",
+    "requests>=2.34.2",
+    "ruff",
+    "scikit-learn==1.6.1",
+    "tqdm",
+    "typer",
+    "wandb==0.28.0",
+    "xgboost==3.3.0",
+]
+requires-python = "~=3.12.0"
+
+
+[tool.ruff]
+line-length = 99
+src = ["at3_crypto"]
+include = ["pyproject.toml", "at3_crypto/**/*.py"]
+
+[tool.ruff.lint]
+extend-select = ["I"]  # Add import sorting
+
+[tool.ruff.lint.isort]
+known-first-party = ["at3_crypto"]
+force-sort-within-sections = true
+
