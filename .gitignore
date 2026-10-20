@@ -1,5 +1,10 @@
-# Data
-/data/
+# Data: keep the folder structure in Git, ignore the data files themselves
+/data/**
+!/data/**/
+!/data/**/.gitkeep
+
+# Weights & Biases local run files
+wandb/
 
 # Mac OS-specific storage files
 .DS_Store
