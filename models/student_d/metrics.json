@@ -1,0 +1,304 @@
+{
+  "model_version": "1.0.0",
+  "created_at": "2026-10-23T14:35:34+00:00",
+  "target": "Trading Opportunity Rating",
+  "target_description": "Five-class rating of the trading opportunity (Strong Sell .. Strong Buy) derived from the Opportunity Score OS = 0.40*M + 0.30*T + 0.20*V - 0.10*R, measured 7 days after the prediction date",
+  "algorithm": "LightGBM Classifier",
+  "forecast_horizon": 7,
+  "features": [
+    "Return20",
+    "RelativeVolume",
+    "Volatility20",
+    "MA5",
+    "MA20",
+    "MA5_MA20_Ratio",
+    "OS"
+  ],
+  "feature_sources": {
+    "Return20": "Student A /features",
+    "MA5": "Student B /features",
+    "MA20": "Student B /features",
+    "MA5_MA20_Ratio": "derived: Student B MA5 / MA20",
+    "Volatility20": "Student C /features",
+    "RelativeVolume": "owned by Student D"
+  },
+  "feature_importance": {
+    "MA5_MA20_Ratio": 0.6381,
+    "Return20": 0.1513,
+    "Volatility20": 0.1017,
+    "MA5": 0.0344,
+    "MA20": 0.027,
+    "OS": 0.025,
+    "RelativeVolume": 0.0225
+  },
+  "classification_labels": [
+    "Strong Sell",
+    "Sell",
+    "Hold",
+    "Buy",
+    "Strong Buy"
+  ],
+  "supported_tokens": [
+    "BTC",
+    "ETH",
+    "XRP",
+    "SOL",
+    "DOGE",
+    "XLM",
+    "TRX",
+    "XMR"
+  ],
+  "metrics": {
+    "test_macro_f1": 0.4081,
+    "test_balanced_accuracy": 0.3956,
+    "test_accuracy": 0.5573,
+    "test_log_loss": 1.036,
+    "test_ece": 0.0416
+  },
+  "per_class_recall": {
+    "Sell": 0.0556,
+    "Hold": 0.6813,
+    "Buy": 0.6241,
+    "Strong Buy": 0.2213
+  },
+  "per_token": {
+    "BTC": {
+      "accuracy": 0.5417,
+      "balanced_accuracy": 0.4207,
+      "macro_f1": 0.3874,
+      "weighted_f1": 0.5032,
+      "rows": 96
+    },
+    "DOGE": {
+      "accuracy": 0.5521,
+      "balanced_accuracy": 0.3885,
+      "macro_f1": 0.3921,
+      "weighted_f1": 0.4937,
+      "rows": 96
+    },
+    "ETH": {
+      "accuracy": 0.5938,
+      "balanced_accuracy": 0.5561,
+      "macro_f1": 0.5547,
+      "weighted_f1": 0.573,
+      "rows": 96
+    },
+    "SOL": {
+      "accuracy": 0.5833,
+      "balanced_accuracy": 0.4366,
+      "macro_f1": 0.447,
+      "weighted_f1": 0.5787,
+      "rows": 96
+    },
+    "TRX": {
+      "accuracy": 0.6042,
+      "balanced_accuracy": 0.6217,
+      "macro_f1": 0.6026,
+      "weighted_f1": 0.5995,
+      "rows": 96
+    },
+    "XLM": {
+      "accuracy": 0.4271,
+      "balanced_accuracy": 0.2904,
+      "macro_f1": 0.2485,
+      "weighted_f1": 0.3628,
+      "rows": 96
+    },
+    "XMR": {
+      "accuracy": 0.5938,
+      "balanced_accuracy": 0.4726,
+      "macro_f1": 0.434,
+      "weighted_f1": 0.5476,
+      "rows": 96
+    },
+    "XRP": {
+      "accuracy": 0.5625,
+      "balanced_accuracy": 0.3819,
+      "macro_f1": 0.3816,
+      "weighted_f1": 0.5052,
+      "rows": 96
+    }
+  },
+  "confusion_matrix": {
+    "labels": [
+      "Sell",
+      "Hold",
+      "Buy",
+      "Strong Buy"
+    ],
+    "matrix": [
+      [
+        2,
+        33,
+        1,
+        0
+      ],
+      [
+        2,
+        218,
+        100,
+        0
+      ],
+      [
+        0,
+        100,
+        181,
+        9
+      ],
+      [
+        0,
+        41,
+        54,
+        27
+      ]
+    ]
+  },
+  "baselines": {
+    "majority_class": {
+      "accuracy": 0.4167,
+      "balanced_accuracy": 0.25,
+      "macro_f1": 0.1471,
+      "weighted_f1": 0.2451
+    },
+    "stratified_random": {
+      "accuracy": 0.3281,
+      "balanced_accuracy": 0.246,
+      "macro_f1": 0.1963,
+      "weighted_f1": 0.3392
+    },
+    "persistence": {
+      "accuracy": 0.5365,
+      "balanced_accuracy": 0.4469,
+      "macro_f1": 0.4558,
+      "weighted_f1": 0.5328
+    },
+    "lightgbm_defaults": {
+      "accuracy": 0.4688,
+      "balanced_accuracy": 0.3618,
+      "macro_f1": 0.3666,
+      "weighted_f1": 0.4496
+    }
+  },
+  "augmentation_ablation": {
+    "trained_clean": {
+      "macro_f1_all_peers_up": 0.4145,
+      "macro_f1_student_a_down": 0.3217
+    },
+    "trained_augmented": {
+      "macro_f1_all_peers_up": 0.4081,
+      "macro_f1_student_a_down": 0.3845
+    }
+  },
+  "degradation": {
+    "all_peers_available": {
+      "accuracy": 0.5573,
+      "balanced_accuracy": 0.3956,
+      "macro_f1": 0.4081,
+      "weighted_f1": 0.5325
+    },
+    "student_a_down": {
+      "accuracy": 0.5456,
+      "balanced_accuracy": 0.3788,
+      "macro_f1": 0.3845,
+      "weighted_f1": 0.5179
+    },
+    "student_b_down": {
+      "accuracy": 0.4779,
+      "balanced_accuracy": 0.2969,
+      "macro_f1": 0.2605,
+      "weighted_f1": 0.4159
+    },
+    "student_c_down": {
+      "accuracy": 0.5625,
+      "balanced_accuracy": 0.3959,
+      "macro_f1": 0.4067,
+      "weighted_f1": 0.531
+    },
+    "all_peers_down": {
+      "accuracy": 0.4193,
+      "balanced_accuracy": 0.2517,
+      "macro_f1": 0.1525,
+      "weighted_f1": 0.2537
+    }
+  },
+  "training_period": {
+    "start": "2024-11-22",
+    "end": "2026-07-04"
+  },
+  "split": {
+    "train": {
+      "rows": 3888,
+      "start": "2024-11-22",
+      "end": "2026-03-22",
+      "class_balance": {
+        "Strong Sell": 0.0285,
+        "Sell": 0.1618,
+        "Hold": 0.4537,
+        "Buy": 0.2608,
+        "Strong Buy": 0.0952
+      }
+    },
+    "validation": {
+      "rows": 776,
+      "start": "2026-03-30",
+      "end": "2026-07-04",
+      "class_balance": {
+        "Sell": 0.1263,
+        "Hold": 0.4961,
+        "Buy": 0.3415,
+        "Strong Buy": 0.0361
+      }
+    },
+    "test": {
+      "rows": 768,
+      "start": "2026-07-12",
+      "end": "2026-10-15",
+      "class_balance": {
+        "Sell": 0.0469,
+        "Hold": 0.4167,
+        "Buy": 0.3776,
+        "Strong Buy": 0.1589
+      }
+    }
+  },
+  "best_params": {
+    "learning_rate": 0.010654276689551136,
+    "num_leaves": 87,
+    "max_depth": 3,
+    "min_child_samples": 81,
+    "subsample": 0.9133469785301511,
+    "subsample_freq": 6,
+    "colsample_bytree": 0.9295213340373265,
+    "reg_alpha": 0.03190909111711975,
+    "reg_lambda": 8.22136406169615e-07,
+    "min_split_gain": 0.3238568563602481,
+    "class_weight": null,
+    "n_estimators": 259
+  },
+  "best_cv_macro_f1": 0.4219,
+  "cv_strategy": "TimeSeriesSplit(n_splits=5, gap=7) on the training period",
+  "search_space": {
+    "learning_rate": "log-uniform [0.005, 0.30]",
+    "num_leaves": "int [15, 255]",
+    "max_depth": "int [3, 12]",
+    "min_child_samples": "int [5, 120]",
+    "subsample": "uniform [0.5, 1.0] (bagging every subsample_freq iterations)",
+    "subsample_freq": "int [1, 7]",
+    "colsample_bytree": "uniform [0.5, 1.0]",
+    "reg_alpha": "log-uniform [1e-8, 10.0] (L1)",
+    "reg_lambda": "log-uniform [1e-8, 10.0] (L2)",
+    "min_split_gain": "uniform [0.0, 0.5]",
+    "class_weight": "categorical [None, 'balanced']",
+    "n_estimators": "int [150, 700]",
+    "cv": "TimeSeriesSplit(n_splits=5, gap=7) on the training period only",
+    "objective": "maximise mean macro-F1 across the 5 CV folds"
+  },
+  "n_trials": 40,
+  "random_seed": 42,
+  "data_source": "Kraken public REST API /0/public/OHLC (interval=1440)",
+  "library_versions": {
+    "lightgbm": "4.6.0",
+    "optuna": "4.9.0",
+    "pandas": "2.2.2"
+  }
+}
