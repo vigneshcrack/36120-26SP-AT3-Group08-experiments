@@ -1,0 +1,95 @@
+{
+  "model_version": "1.0.0",
+  "created_at": "2026-10-23T02:52:14+00:00",
+  "target": "Market Risk Index",
+  "target_description": "0-100 composite risk score (40% volatility, 30% drawdown from 20-day high, 20% downside 20-day return, 10% gap risk) measured 7 days after the prediction date",
+  "algorithm": "LightGBM Regressor",
+  "forecast_horizon": 7,
+  "features": [
+    "Return20",
+    "Volatility20",
+    "DR",
+    "GapRisk"
+  ],
+  "feature_sources": {
+    "Return20": "Student A /features",
+    "Volatility20": "Student C /features",
+    "DR": "derived: Student C MaxPrice20 + Kraken close",
+    "GapRisk": "Student C /features"
+  },
+  "feature_importance": {
+    "Return20": 0.0771,
+    "Volatility20": 0.2707,
+    "DR": 0.6304,
+    "GapRisk": 0.0219
+  },
+  "classification_labels": null,
+  "supported_tokens": [
+    "BTC",
+    "ETH",
+    "XRP",
+    "SOL",
+    "DOGE",
+    "XLM",
+    "TRX",
+    "XMR"
+  ],
+  "selected_configuration": "LightGBM tuned (Optuna)",
+  "hyperparameters": {
+    "learning_rate": 0.011296331091255468,
+    "n_estimators": 526,
+    "num_leaves": 47,
+    "max_depth": 3,
+    "min_child_samples": 192,
+    "subsample": 0.7205814762119102,
+    "colsample_bytree": 0.9085169879316439,
+    "reg_alpha": 4.8490644403642106e-05,
+    "reg_lambda": 4.1050867088722256e-08,
+    "subsample_freq": 1
+  },
+  "search_space": {
+    "learning_rate": "log-uniform [0.005, 0.2]",
+    "n_estimators": "integer [100, 1000]",
+    "num_leaves": "integer [8, 128]",
+    "max_depth": "integer [3, 12]",
+    "min_child_samples": "integer [10, 200]",
+    "subsample": "uniform [0.5, 1.0] (bagging_freq = 1)",
+    "colsample_bytree": "uniform [0.5, 1.0]",
+    "reg_alpha": "log-uniform [1e-8, 10]",
+    "reg_lambda": "log-uniform [1e-8, 10]"
+  },
+  "optuna": {
+    "n_trials": 60,
+    "best_cv_mae": 8.1081,
+    "cv": "TimeSeriesSplit(5) over dates, gap=7"
+  },
+  "metrics": {
+    "test_mae": 4.2409,
+    "test_rmse": 5.5004,
+    "test_r2": 0.569,
+    "test_skill_vs_persistence": -0.0845,
+    "persistence_test_mae": 3.9105,
+    "mean_baseline_test_mae": 11.2923
+  },
+  "degradation_test_mae": {
+    "All features available": 4.2409,
+    "Student A down": 4.4872,
+    "Student C down": 9.605,
+    "Student A and C down": 10.9646
+  },
+  "training_period": {
+    "start": "2024-11-22",
+    "end": "2026-10-15"
+  },
+  "test_period": {
+    "start": "2026-07-04",
+    "end": "2026-10-15"
+  },
+  "data_source": "Kraken public OHLC API, daily candles (interval=1440), USD pairs",
+  "package_versions": {
+    "lightgbm": "4.6.0",
+    "scikit-learn": "1.6.1",
+    "pandas": "2.2.2",
+    "mykrml_25740287": "0.3.0"
+  }
+}

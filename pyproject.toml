@@ -22,6 +22,7 @@ dependencies = [
     "lime==0.2.0.1",
     "loguru",
     "matplotlib==3.11.0",
+    "mykrml-25740287==0.3.0",
     "optuna==4.9.0",
     "pandas==2.2.2",
     "pip",
@@ -36,6 +37,16 @@ dependencies = [
     "xgboost==3.3.0",
 ]
 requires-python = "~=3.12.0"
+
+# The group's shared feature package is published on TestPyPI; only that package is taken
+# from TestPyPI, everything else comes from the normal PyPI index.
+[tool.uv.sources]
+mykrml-25740287 = { index = "testpypi" }
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+explicit = true
 
 
 [tool.ruff]
