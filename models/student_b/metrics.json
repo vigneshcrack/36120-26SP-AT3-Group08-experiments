@@ -1,0 +1,135 @@
+{
+  "model_version": "1.0.0",
+  "created_at": "2026-10-23T03:52:26+00:00",
+  "target": "Market Risk Index",
+  "target_description": "0-100 composite risk score (40% volatility, 30% drawdown from the 20-day high, 20% downside 20-day return, 10% gap risk) measured 7 days after the prediction date",
+  "algorithm": "LightGBM Regressor",
+  "forecast_horizon": 7,
+  "features": [
+    "Return20",
+    "Volatility20",
+    "DR",
+    "GapRisk",
+    "MRI"
+  ],
+  "feature_sources": {
+    "Return20": "Student A /features",
+    "Volatility20": "Student C /features",
+    "DR": "derived: Student C MaxPrice20 + Kraken close",
+    "GapRisk": "Student C /features",
+    "MRI": "derived: Student A + Student C features + Kraken close"
+  },
+  "feature_importance": {
+    "Return20": 0.5032,
+    "Volatility20": 0.1371,
+    "DR": 0.1655,
+    "GapRisk": 0.1555,
+    "MRI": 0.0386
+  },
+  "permutation_importance_test_mae_increase": {
+    "MRI": 5.5531,
+    "Return20": 0.3743,
+    "DR": 0.0469,
+    "Volatility20": 0.0055,
+    "GapRisk": 0.0044
+  },
+  "classification_labels": null,
+  "supported_tokens": [
+    "BTC",
+    "ETH",
+    "XRP",
+    "SOL",
+    "DOGE",
+    "XLM",
+    "TRX",
+    "XMR"
+  ],
+  "primary_model": "Exp 2 LightGBM residual, tuned (Optuna)",
+  "fallback_model": "Exp 1 LightGBM level, tuned (Optuna)",
+  "primary_formulation": "residual",
+  "shrink": 0.678,
+  "hyperparameters": {
+    "primary": {
+      "learning_rate": 0.006067590393153844,
+      "n_estimators": 317,
+      "num_leaves": 32,
+      "max_depth": 10,
+      "min_child_samples": 167,
+      "subsample": 0.9985764306805314,
+      "colsample_bytree": 0.9314319650345209,
+      "reg_alpha": 0.017586920195945682,
+      "reg_lambda": 0.008838220009050164,
+      "objective": "l1",
+      "subsample_freq": 1
+    },
+    "fallback": {
+      "learning_rate": 0.0095360903470717,
+      "n_estimators": 552,
+      "num_leaves": 40,
+      "max_depth": 3,
+      "min_child_samples": 152,
+      "subsample": 0.603226256973669,
+      "colsample_bytree": 0.945261785874028,
+      "reg_alpha": 0.010454061128380144,
+      "reg_lambda": 2.0696657315018245e-05,
+      "subsample_freq": 1
+    }
+  },
+  "search_space": {
+    "learning_rate": "log-uniform [0.005, 0.2]",
+    "n_estimators": "integer [100, 1000]",
+    "num_leaves": "integer [8, 128]",
+    "max_depth": "integer [3, 12]",
+    "min_child_samples": "integer [10, 200]",
+    "subsample": "uniform [0.5, 1.0] (subsample_freq = 1)",
+    "colsample_bytree": "uniform [0.5, 1.0]",
+    "reg_alpha": "log-uniform [1e-8, 10]",
+    "reg_lambda": "log-uniform [1e-8, 10]",
+    "objective": "categorical {l2 (squared error), l1 (absolute error), huber}",
+    "alpha (Huber threshold, MRI points)": "uniform [1, 20] - only when objective = huber",
+    "shrink (weight on the predicted change)": "uniform [0, 1]"
+  },
+  "optuna": {
+    "cv": "TimeSeriesSplit(5) over unique dates, gap = 7 days, training period only",
+    "level": {
+      "n_trials": 40,
+      "best_cv_mae": 8.1243
+    },
+    "residual": {
+      "n_trials": 60,
+      "best_cv_mae": 7.5267
+    },
+    "persistence_cv_mae": 7.9562
+  },
+  "metrics": {
+    "test_mae": 3.7037,
+    "test_rmse": 5.0981,
+    "test_r2": 0.6297,
+    "test_skill_vs_persistence": 0.0529,
+    "persistence_test_mae": 3.9105,
+    "mean_baseline_test_mae": 11.2923,
+    "validation_mae": 5.9166,
+    "persistence_validation_mae": 6.2062
+  },
+  "degradation_test_mae": {
+    "All features available": 3.7037,
+    "Student A down": 4.4032,
+    "Student C down": 9.2629,
+    "Student A and C down": 11.0005
+  },
+  "training_period": {
+    "start": "2024-11-22",
+    "end": "2026-10-15"
+  },
+  "test_period": {
+    "start": "2026-07-04",
+    "end": "2026-10-15"
+  },
+  "data_source": "Kraken public OHLC API, daily candles (interval=1440), USD pairs",
+  "package_versions": {
+    "lightgbm": "4.6.0",
+    "scikit-learn": "1.6.1",
+    "pandas": "2.2.2",
+    "mykrml_25740287": "0.3.0"
+  }
+}
