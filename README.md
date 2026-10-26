@@ -12,10 +12,10 @@
 
 | Role | Target (model) | Student name | Student ID |
 |---|---|---|---|
-| Student A | Asset Performance Index – API (XGBoost Regressor) | Ryan Cruikshank | _TBC_ |
+| Student A | Asset Performance Index – API (XGBoost Regressor) | Ryan Cruikshank | 13191263 |
 | Student B | Market Risk Index – MRI (LightGBM Regressor) | Vignesh Selvam | 25740287 |
-| Student C | Trend Category – TC (XGBoost Classifier) | Vinnie Bui | _TBC_ |
-| Student D | Trading Opportunity Rating – TOR (LightGBM Classifier) | Nandeeswari Kumaravelu | _TBC_ |
+| Student C | Trend Category – TC (XGBoost Classifier) | Nandeeswari Kumaravelu | 25980436 |
+| Student D | Trading Opportunity Rating – TOR (LightGBM Classifier) | Vinnie Bui | 26160438 |
 
 ## What this repository is
 
@@ -34,7 +34,7 @@ independent FastAPI service on Render, which the group's Streamlit application c
 | Experiments (this repo) | `36120-26SP-AT3-Group08-experiments` | – |
 | Streamlit front-end | `36120-26SP-AT3-Group08-streamlit` | _URL TBC_ |
 | Student A API | _TBC_ | _URL TBC_ |
-| Student B API | `36120-26SP-AT3-Group08-StudentB-api` | _URL TBC_ |
+| Student B API | `36120-26SP-AT3-Group08-StudentB-api` | https://group08-studentb-mri-api.onrender.com |
 | Student C API | _TBC_ | _URL TBC_ |
 | Student D API | _TBC_ | _URL TBC_ |
 
