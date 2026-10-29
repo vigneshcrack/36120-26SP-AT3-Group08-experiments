@@ -21,13 +21,21 @@ FORECAST_HORIZON: Final = 7
 # Ordered worst -> best. The exact strings are fixed by CONTRACT.md section 5
 # and are what the API returns and Streamlit renders.
 TOR_LABELS: Final[list[str]] = [
-    "Strong Sell", "Sell", "Hold", "Buy", "Strong Buy",
+    "Strong Sell",
+    "Sell",
+    "Hold",
+    "Buy",
+    "Strong Buy",
 ]
 TOR_LABEL_BY_INDEX: Final[dict[int, str]] = dict(enumerate(TOR_LABELS))
 
 # Features the TOR target is built from, and therefore the model's inputs.
 TOR_INPUT_FEATURES: Final[list[str]] = [
-    "Return20", "MA5", "MA20", "RelativeVolume", "Volatility20",
+    "Return20",
+    "MA5",
+    "MA20",
+    "RelativeVolume",
+    "Volatility20",
 ]
 
 
@@ -86,9 +94,7 @@ def classify_tor(score: pd.Series | float) -> pd.Series | int:
     return int(classes.iloc[0]) if scalar_input else classes
 
 
-def build_tor_target(
-    features: pd.DataFrame, horizon: int = FORECAST_HORIZON
-) -> pd.DataFrame:
+def build_tor_target(features: pd.DataFrame, horizon: int = FORECAST_HORIZON) -> pd.DataFrame:
     """Append today's OS/TOR and the forward-looking TOR target.
 
     Adds:

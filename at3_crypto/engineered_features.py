@@ -53,7 +53,13 @@ OWNED_FEATURE_DEFINITIONS: Final[dict[str, str]] = {
 }
 
 REQUIRED_OHLCV_COLUMNS: Final = {
-    "date", "token", "open", "high", "low", "close", "volume",
+    "date",
+    "token",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
 }
 
 
@@ -68,7 +74,12 @@ def engineer_features(ohlcv: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"OHLCV frame is missing columns: {sorted(missing)}")
 
-    frame = ohlcv.sort_values(["token", "date"]).copy()
+    # The engineered columns are assigned from per-token rolling results, which
+    # pandas aligns on the index. A caller that built this frame with
+    # `pd.concat([...])` instead of `ignore_index=True` has duplicate labels,
+    # and alignment against those is ambiguous - so the index is rebuilt here
+    # rather than trusted.
+    frame = ohlcv.sort_values(["token", "date"]).reset_index(drop=True)
     grouped = frame.groupby("token", sort=False)
 
     # --- Student A ---------------------------------------------------------
@@ -110,8 +121,6 @@ def engineer_features(ohlcv: pd.DataFrame) -> pd.DataFrame:
 def _rolling(frame: pd.DataFrame, column: str, window: int, how: str) -> pd.Series:
     """Per-token rolling aggregation requiring a full window."""
     rolled = (
-        frame.groupby("token", sort=False)[column]
-        .rolling(window, min_periods=window)
-        .agg(how)
+        frame.groupby("token", sort=False)[column].rolling(window, min_periods=window).agg(how)
     )
     return rolled.reset_index(level=0, drop=True)

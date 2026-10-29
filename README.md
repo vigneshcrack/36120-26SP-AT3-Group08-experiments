@@ -27,13 +27,14 @@
 6. [Command-line pipeline](#6-command-line-pipeline)
 7. [Shared experimental conventions](#7-shared-experimental-conventions)
 8. [Results – Student B (Market Risk Index)](#8-results--student-b-market-risk-index)
-9. [Data management](#9-data-management)
-10. [Project organisation](#10-project-organisation)
-11. [Testing and code quality](#11-testing-and-code-quality)
-12. [Collaboration workflow](#12-collaboration-workflow)
-13. [Reproducibility checklist](#13-reproducibility-checklist)
-14. [Troubleshooting](#14-troubleshooting)
-15. [AI usage acknowledgement](#15-ai-usage-acknowledgement)
+9. [Results – Student D (Trading Opportunity Rating)](#9-results--student-d-trading-opportunity-rating)
+10. [Data management](#10-data-management)
+11. [Project organisation](#11-project-organisation)
+12. [Testing and code quality](#12-testing-and-code-quality)
+13. [Collaboration workflow](#13-collaboration-workflow)
+14. [Reproducibility checklist](#14-reproducibility-checklist)
+15. [Troubleshooting](#15-troubleshooting)
+16. [AI usage acknowledgement](#16-ai-usage-acknowledgement)
 
 ---
 
@@ -135,7 +136,7 @@ Each student works in their own notebook folder. To reproduce a notebook:
 | `notebooks/student_a/` | Student A | `models/student_a/`, `data/processed/student_a/` |
 | `notebooks/student_b/36120_26SP_AT3_08_25740287_experiment.ipynb` | Student B | `models/student_b/`, `data/processed/student_b/`, `reports/figures/student_b/` |
 | `notebooks/student_c/` | Student C | `models/student_c/`, `data/processed/student_c/` |
-| `notebooks/student_d/` | Student D | `models/student_d/`, `data/processed/student_d/` |
+| `notebooks/student_d/36120_26SP_AT3_08_26160438_experiment.ipynb` | Student D | `models/student_d/`, `data/processed/student_d/`, `reports/figures/student_d/` |
 
 **The notebooks follow the subject template:**
 - A – project description
@@ -148,7 +149,9 @@ Each student works in their own notebook folder. To reproduce a notebook:
 - J – training and evaluation
 - outcomes and next steps
 
-The Student B notebook reads the dated Kraken snapshot in `data/raw/`, so its results are reproducible. Set `REFRESH_DATA = True` in section C.1 to download a new one.
+Both notebooks read the dated Kraken snapshot in `data/raw/`, so their results are reproducible: Kraken only ever
+serves the latest 720 candles, so fetching live would move the window and change every number on each re-run. Set
+`REFRESH_DATA = True` in section C.1 to download a new snapshot instead.
 
 ---
 
@@ -163,6 +166,7 @@ The `at3_crypto` package provides scripts for each pipeline step, so the main st
 | `make evaluate` | Re-fits the selected Student B configuration on train + validation and scores the test period. It reproduces **MAE 3.70 vs 3.91 for persistence** |
 | `make train` | Re-fits both Student B models on all labelled data and writes `models/student_b/mri_lightgbm_retrained.joblib`. The official bundle is not touched |
 | `make predict` | Forecasts next week's Market Risk Index for every token with the saved bundle |
+| `make tor` | Re-runs Student D's full TOR pipeline (split, 40 Optuna trials, refit, evaluation) and rewrites `models/student_d/` |
 | `make test` / `make lint` / `make format` | Runs the tests, checks the code style, or reformats the code |
 
 The same commands work without `make`, for example `uv run python -m at3_crypto.modeling.train --evaluate`.
@@ -179,10 +183,10 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 | Features | Computed only by the shared package, so all four models and services use identical definitions |
 | Labels | Index at t+7, created within each token. Inputs use information up to day t only |
 | Split | Chronological by date across all tokens, about 70/15/15, with a **7-day purge gap** before validation and before test. Never random |
-| Tuning | Optuna (TPE, `seed=42`) with 5-fold `TimeSeriesSplit(gap=7)` on the training period only |
+| Tuning | Optuna (TPE, `seed=42`) with 5-fold `TimeSeriesSplit(gap=7)` on the training period only. **Apply the split to the distinct *dates*, not to the rows:** the modelling frame is a panel of 8 tokens per date, so splitting rows cuts it by token (each fold's validation set then spans its own training dates) and `gap=7` purges 7 rows instead of 7 days |
 | Baselines | Mean or majority class **and** persistence (today's value as the 7-day forecast) |
 | Metrics | Regression: MAE (primary), RMSE, R². Classification: macro-F1 (primary), balanced accuracy, per-class recall, log-loss |
-| Evaluation | The test set is scored once. The deployed model is refitted on all data with the selected settings |
+| Evaluation | The test set is scored once. The deployed model is refitted with the selected settings — Student D refits on train + validation only, so the reported figures describe the artefact that is actually served |
 | Tracking | Optuna trials and final metrics logged to Weights & Biases |
 | Robustness | Models must keep predicting when a peer feature is missing (NaN). The degradation is measured |
 
@@ -208,7 +212,31 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 
 ---
 
-## 9. Data management
+## 9. Results – Student D (Trading Opportunity Rating)
+
+| Item | Result |
+|---|---|
+| Data | 8 tokens × 720 days → 5,432 labelled token-days after the 20-day warm-up and the 7-day shift |
+| Split | Train 3,888 · validation 776 · test 768 rows, with 7-day purge gaps |
+| Selected inputs | Return20, RelativeVolume, Volatility20, MA5, MA20, plus MA5_MA20_Ratio (the brief's T) and OS (today's Opportunity Score) |
+| Final model | LightGBM 5-class classifier, refit on train + validation with missing-feature augmentation |
+| Optuna | 40 trials, TimeSeriesSplit(5, gap=7) over the training **dates**; best CV macro-F1 0.3546 |
+| **Test** | **macro-F1 0.3424, balanced accuracy 0.4552, accuracy 0.4648, log-loss 1.1186, ECE 0.0950** |
+| Baselines | persistence 0.3646 · default LightGBM 0.2933 · stratified random 0.1963 · majority class 0.1176 |
+| Outcome | Hypothesis partially confirmed. Clearly beats majority class, random and default LightGBM, and beats persistence on balanced accuracy (0.455 vs 0.447), but **not on macro-F1** (0.342 vs 0.365). Next step: model the rating *delta* rather than the level |
+
+All F1 figures average over **all five** labels, including `Strong Sell`, which does not occur in the test window at all
+(`labels_in_test` in `metrics.json` records this). Averaging only the observed labels would raise the headline number
+while making it incomparable with the baselines and the per-token table.
+
+**Artefacts:**
+- `models/student_d/tor_lightgbm.joblib`: the fitted classifier, feature list, label map and all `/model-metadata` fields.
+- `models/student_d/metrics.json`: all metadata, served by the API's `/model-metadata`.
+- `reports/figures/student_d/`: the figures used in the report.
+
+---
+
+## 10. Data management
 
 | Location | Content | In Git? |
 |---|---|---|
@@ -222,7 +250,7 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 
 ---
 
-## 10. Project organisation
+## 11. Project organisation
 
 ```
 ├── CONTRACT.md          <- Group integration contract shared by all four services
@@ -257,24 +285,37 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 
 ---
 
-## 11. Testing and code quality
+## 12. Testing and code quality
 
 ```bash
 make test      # = uv run pytest tests
 make lint      # ruff format --check + ruff check
 ```
 
-The tests run offline on the committed snapshot and check:
+The tests run offline on the committed snapshot. Shared and Student B (`tests/test_data.py`):
 - **The snapshot:** exactly 8 tokens × 720 consecutive days, no duplicates, and valid OHLC invariants.
 - **The labels:** every label equals the MRI exactly seven calendar days later.
 - **The dataset and split:** 5,544 labelled rows, 8 latest rows set aside, a 3,824 / 776 / 832 split, and purge gaps longer than 7 days.
 - **The saved bundle:** it loads and forecasts every token within 0–100.
 
+Student D (`tests/test_student_d.py`):
+- **The feature formulas:** `VolumeSMA20` and `RelativeVolume` against hand computations, the peer-owned formulas against
+  the contract's definitions, and that no rolling window ever spans two tokens.
+- **The TOR bands:** every boundary in CONTRACT.md §5, inclusive side included, plus NaN propagation.
+- **The t+7 shift:** the label equals today's rating seven rows later, per token, and the last 7 rows carry no label.
+- **The in-progress candle:** it is dropped by default (a fake Kraken session, so the test needs no network).
+- **The cross-validation scheme:** folds are ordered in time, every seam purges more than 7 days, all 8 tokens appear on
+  both sides of every fold, and row order cannot change which dates land in which fold.
+- **The augmentation:** it doubles the rows, leaves the originals untouched, never masks Student-D-owned features, and is
+  reproducible from its seed.
+- **The metrics:** F1 averages over all five labels, and probabilities are widened to all five even when a rating is
+  absent from training.
+
 The shared package has its own suite of 48 tests in its repository.
 
 ---
 
-## 12. Collaboration workflow
+## 13. Collaboration workflow
 
 - **Protected `main`:** direct pushes are blocked. Every change needs a pull request with at least one approving review.
 - **Branch names:** `student-<a|b|c|d>/<topic>` (for example `student-b/mri-experiment`), or `setup/<topic>` for shared work.
@@ -285,18 +326,19 @@ The shared package has its own suite of 48 tests in its repository.
 
 ---
 
-## 13. Reproducibility checklist
+## 14. Reproducibility checklist
 
 - [x] Pinned Python and package versions (`.python-version`, `pyproject.toml`, `uv.lock`, `requirements.txt`)
-- [x] Dated data snapshot committed. Notebooks read it unless `REFRESH_DATA = True`
+- [x] Dated data snapshot committed. Both notebooks read it unless `REFRESH_DATA = True`
 - [x] Fixed seeds (42) and deterministic LightGBM (`deterministic=True`, `force_row_wise=True`)
+- [x] Every quoted figure in the notebooks is interpolated from the run, never transcribed, so prose cannot drift from results
 - [x] No hard-coded local paths. All paths are built from the project root (`at3_crypto/config.py`)
 - [x] Secrets only in `.env`, which is git-ignored
-- [x] Test result reproducible from the command line (`make evaluate`)
+- [x] Test result reproducible from the command line (`make evaluate` for Student B, `make tor` for Student D)
 
 ---
 
-## 14. Troubleshooting
+## 15. Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
@@ -308,6 +350,6 @@ The shared package has its own suite of 48 tests in its repository.
 
 ---
 
-## 15. AI usage acknowledgement
+## 16. AI usage acknowledgement
 
 Generative AI (Claude) was used to support planning, coding and documentation, in line with the subject's AI usage policy. All generated content was reviewed, executed and validated by the group members, who take full responsibility for it and can explain and justify every design decision.

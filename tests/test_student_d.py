@@ -9,10 +9,12 @@ pipeline would fail.
 
 from __future__ import annotations
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import pytest
 
+from at3_crypto.dataset import SNAPSHOT_PATH
 from at3_crypto.engineered_features import (
     FEATURE_OWNERS,
     LONG_WINDOW,
@@ -20,7 +22,17 @@ from at3_crypto.engineered_features import (
     engineer_features,
 )
 from at3_crypto.kraken import SUPPORTED_TOKENS, KrakenClient
+from at3_crypto.modeling.student_d_tor import (
+    PEER_FEATURE_GROUPS,
+    _score,
+    augment_missing_features,
+    load_dataset,
+    load_ohlcv,
+    predict_proba_all_labels,
+    purged_date_folds,
+)
 from at3_crypto.targets import (
+    FORECAST_HORIZON,
     TOR_LABELS,
     build_tor_target,
     classify_tor,
@@ -209,3 +221,127 @@ def test_target_is_not_recoverable_from_todays_features():
         subset=["TOR", "target_TOR"]
     )
     assert (data["TOR"] == data["target_TOR"]).mean() < 0.95
+
+
+# --- Contract section 8: the cross-validation scheme ---------------------
+
+@pytest.fixture(scope="module")
+def dataset():
+    """The real split, built from the committed snapshot (no network)."""
+    if not SNAPSHOT_PATH.exists():
+        pytest.skip("data snapshot not available")
+    data, _ = load_dataset()
+    return data
+
+
+def test_chronological_split_purges_the_forecast_horizon(dataset):
+    assert dataset.train["date"].max() < dataset.validation["date"].min()
+    assert dataset.validation["date"].max() < dataset.test["date"].min()
+
+    to_validation = (dataset.validation["date"].min() - dataset.train["date"].max()).days
+    to_test = (dataset.test["date"].min() - dataset.validation["date"].max()).days
+    assert to_validation > FORECAST_HORIZON
+    assert to_test > FORECAST_HORIZON
+
+
+def test_cv_folds_are_ordered_in_time_with_a_seven_day_purge(dataset):
+    """The contract's gap must purge seven DAYS, not seven rows.
+
+    `TimeSeriesSplit` cuts on row positions. The modelling frame is a panel of
+    eight tokens per date, so handing it rows would split it by token - every
+    fold's validation set would span its training set's own dates, and `gap=7`
+    would purge less than one calendar day.
+    """
+    dates = dataset.train["date"]
+    folds = list(purged_date_folds(dates))
+    assert len(folds) == 5
+
+    for fold_train, fold_valid in folds:
+        train_dates, valid_dates = dates.iloc[fold_train], dates.iloc[fold_valid]
+        assert valid_dates.min() > train_dates.max()
+        assert (valid_dates.min() - train_dates.max()).days > FORECAST_HORIZON
+        # No date may appear on both sides of a fold.
+        assert not set(train_dates) & set(valid_dates)
+
+
+def test_cv_folds_keep_every_token_on_both_sides(dataset):
+    """A fold must measure forecasting, not generalisation to an unseen coin."""
+    tokens = dataset.train["token"]
+    for fold_train, fold_valid in purged_date_folds(dataset.train["date"]):
+        assert set(tokens.iloc[fold_train]) == set(SUPPORTED_TOKENS)
+        assert set(tokens.iloc[fold_valid]) == set(SUPPORTED_TOKENS)
+
+
+def test_row_order_cannot_affect_the_folds(dataset):
+    """Shuffling the frame must not change which dates land in which fold."""
+    shuffled = dataset.train.sample(frac=1.0, random_state=0)
+    original = [
+        (sorted(set(dataset.train["date"].iloc[a])), sorted(set(dataset.train["date"].iloc[b])))
+        for a, b in purged_date_folds(dataset.train["date"])
+    ]
+    reordered = [
+        (sorted(set(shuffled["date"].iloc[a])), sorted(set(shuffled["date"].iloc[b])))
+        for a, b in purged_date_folds(shuffled["date"])
+    ]
+    assert original == reordered
+
+
+# --- Contract section 7: missing-feature augmentation -------------------
+
+def test_augmentation_doubles_the_rows_and_spares_the_owned_feature(dataset):
+    x, y = dataset.xy("train")
+    x_aug, y_aug = augment_missing_features(x, y)
+
+    assert len(x_aug) == 2 * len(x)
+    assert len(y_aug) == 2 * len(y)
+    # The original rows are untouched; only the appended copy carries masks.
+    pd.testing.assert_frame_equal(x_aug.iloc[: len(x)], x.reset_index(drop=True))
+
+    copy = x_aug.iloc[len(x) :]
+    # Student D owns RelativeVolume, so it is never unavailable at inference.
+    assert copy["RelativeVolume"].notna().all()
+    # Every peer group must actually be exercised.
+    for columns in PEER_FEATURE_GROUPS.values():
+        assert copy[columns].isna().any().any()
+
+
+def test_augmentation_is_reproducible(dataset):
+    x, y = dataset.xy("train")
+    first, _ = augment_missing_features(x, y, seed=7)
+    second, _ = augment_missing_features(x, y, seed=7)
+    pd.testing.assert_frame_equal(first, second)
+
+
+# --- Contract section 8: comparable metrics -----------------------------
+
+def test_scores_average_over_all_five_labels():
+    """Averaging only the observed labels would make the figures incomparable."""
+    perfect_on_one_class = _score([0, 0, 0], [0, 0, 0])
+    assert perfect_on_one_class["accuracy"] == 1.0
+    # One of five labels right, four absent and scored 0 -> 1/5.
+    assert perfect_on_one_class["macro_f1"] == pytest.approx(0.2)
+
+
+def test_probabilities_are_widened_to_every_label():
+    """log-loss over five labels needs five columns, even if a class is unseen."""
+    x = pd.DataFrame({"f": np.arange(40, dtype=float)})
+    y = pd.Series([2] * 20 + [3] * 20)          # only two of the five ratings
+    model = lgb.LGBMClassifier(n_estimators=5, verbose=-1).fit(x, y)
+
+    probabilities = predict_proba_all_labels(model, x)
+    assert probabilities.shape == (40, len(TOR_LABELS))
+    assert np.allclose(probabilities.sum(axis=1), 1.0)
+    # The ratings the model never saw carry essentially no mass.
+    assert probabilities[:, [0, 1, 4]].max() < 1e-9
+
+
+# --- Reproducibility ----------------------------------------------------
+
+def test_snapshot_is_the_default_source():
+    """Live fetches move Kraken's 720-candle window and break reproducibility."""
+    if not SNAPSHOT_PATH.exists():
+        pytest.skip("data snapshot not available")
+    raw = load_ohlcv()
+    assert list(raw.columns) == ["date", "token", "open", "high", "low", "close", "volume"]
+    assert str(raw["date"].dt.tz) == "UTC"
+    assert set(raw["token"]) == set(SUPPORTED_TOKENS)

@@ -39,6 +39,21 @@ SUPPORTED_TOKENS: Final[dict[str, str]] = {
     "XMR": "XMRUSD",
 }
 
+# CONTRACT.md section 3: Kraken answers under its own canonical key, which is
+# not always the pair that was requested (XBTUSD -> XXBTZUSD). The mapping is
+# agreed in the contract, so it is matched explicitly rather than by taking
+# whichever key happens to come first in the response.
+RESULT_KEYS: Final[dict[str, str]] = {
+    "BTC": "XXBTZUSD",
+    "ETH": "XETHZUSD",
+    "XRP": "XXRPZUSD",
+    "SOL": "SOLUSD",
+    "DOGE": "XDGUSD",
+    "XLM": "XXLMZUSD",
+    "TRX": "TRXUSD",
+    "XMR": "XXMRZUSD",
+}
+
 # CONTRACT.md section 3: cache and retry policy.
 CACHE_SECONDS: Final = 15 * 60
 MAX_RETRIES: Final = 2
@@ -101,9 +116,7 @@ class KrakenClient:
                     timeout=self.timeout,
                 )
                 if response.status_code in RETRYABLE_STATUS:
-                    raise requests.HTTPError(
-                        f"HTTP {response.status_code}", response=response
-                    )
+                    raise requests.HTTPError(f"HTTP {response.status_code}", response=response)
                 response.raise_for_status()
                 payload = response.json()
                 if payload.get("error"):
@@ -115,7 +128,9 @@ class KrakenClient:
                     delay = BACKOFF_SECONDS[attempt]
                     logger.warning(
                         "Kraken request for %s failed (%s); retrying in %.0fs",
-                        token, exc, delay,
+                        token,
+                        exc,
+                        delay,
                     )
                     time.sleep(delay)
 
@@ -126,9 +141,20 @@ class KrakenClient:
     @staticmethod
     def _to_frame(payload: dict, token: str, drop_incomplete: bool) -> pd.DataFrame:
         result = payload.get("result", {})
-        # Kraken answers under its own canonical key (XBTUSD -> XXBTZUSD),
-        # alongside a "last" cursor that is not a candle series.
-        candles = next((v for k, v in result.items() if k != "last"), None)
+        # Prefer the contract's agreed result key; fall back to the first
+        # non-cursor key only if Kraken renames a pair, so a rename degrades to
+        # a warning instead of a KeyError.
+        expected = RESULT_KEYS[token]
+        candles = result.get(expected)
+        if candles is None:
+            candles = next((v for k, v in result.items() if k != "last"), None)
+            if candles is not None:
+                logger.warning(
+                    "Kraken did not return the agreed result key %s for %s; using %s instead",
+                    expected,
+                    token,
+                    next(k for k in result if k != "last"),
+                )
         if not candles:
             raise KrakenError(f"Kraken returned no candles for {token}")
 
@@ -138,10 +164,12 @@ class KrakenClient:
         frame[numeric] = frame[numeric].astype(float)
         frame["token"] = token
 
+        # Sort BEFORE de-duplicating: `keep="last"` only means "the most recent
+        # candle for that day" once the rows are in date order.
         frame = (
             frame.loc[:, ["date", "token", "open", "high", "low", "close", "volume"]]
-            .drop_duplicates(subset="date", keep="last")
             .sort_values("date")
+            .drop_duplicates(subset="date", keep="last")
             .reset_index(drop=True)
         )
 
@@ -154,7 +182,10 @@ class KrakenClient:
 
         logger.info(
             "Fetched %d complete daily candles for %s (%s .. %s)",
-            len(frame), token, frame["date"].iloc[0].date(), frame["date"].iloc[-1].date(),
+            len(frame),
+            token,
+            frame["date"].iloc[0].date(),
+            frame["date"].iloc[-1].date(),
         )
         return frame
 
