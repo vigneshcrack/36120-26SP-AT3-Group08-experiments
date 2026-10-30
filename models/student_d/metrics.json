@@ -1,6 +1,6 @@
 {
   "model_version": "1.0.0",
-  "created_at": "2026-10-29T05:13:53+00:00",
+  "created_at": "2026-10-30T23:39:42+00:00",
   "target": "Trading Opportunity Rating",
   "target_description": "Five-class rating of the trading opportunity (Strong Sell .. Strong Buy) derived from the Opportunity Score OS = 0.40*M + 0.30*T + 0.20*V - 0.10*R, measured 7 days after the prediction date",
   "algorithm": "LightGBM Classifier",
