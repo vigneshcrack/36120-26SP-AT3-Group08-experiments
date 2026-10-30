@@ -86,7 +86,7 @@ The exact formulas, thresholds and label strings are in `CONTRACT.md` §5.
 | Student A API | _TBC_ | _TBC_ |
 | Student B API | `36120-26SP-AT3-Group08-StudentB-api` | https://group08-studentb-mri-api.onrender.com |
 | Student C API | _TBC_ | _TBC_ |
-| Student D API | _TBC_ | _TBC_ |
+| Student D API | `36120-26SP-AT3-Group08-StudentD-api` | _TBC_ |
 
 All repositories are private. The teaching staff listed in the brief have administrator access.
 
@@ -232,7 +232,16 @@ while making it incomparable with the baselines and the per-token table.
 **Artefacts:**
 - `models/student_d/tor_lightgbm.joblib`: the fitted classifier, feature list, label map and all `/model-metadata` fields.
 - `models/student_d/metrics.json`: all metadata, served by the API's `/model-metadata`.
-- `reports/figures/student_d/`: the figures used in the report.
+- `reports/figures/student_d/`: the figures used in the report — the target distribution, the three
+  features of interest, the feature correlation and screening importance, the two engineered
+  features, the Optuna search history (`optuna_history.png`) and the test diagnostics
+  (`j4_test_diagnostics.png`: confusion matrix and gain importance). All are written by the
+  notebook, so none can disagree with the run that produced the artefact.
+
+The Optuna trials are logged to Weights & Biases under the project `WANDB_PROJECT`
+(default `36120-26SP-AT3-Group08`, the same project Student B uses) in the group
+`student_d`. Without `WANDB_API_KEY` the run is written offline to `./wandb` and can be
+synced later, so a missing key degrades the tracking rather than failing the training.
 
 ---
 
@@ -335,6 +344,9 @@ The shared package has its own suite of 48 tests in its repository.
 - [x] No hard-coded local paths. All paths are built from the project root (`at3_crypto/config.py`)
 - [x] Secrets only in `.env`, which is git-ignored
 - [x] Test result reproducible from the command line (`make evaluate` for Student B, `make tor` for Student D)
+- [x] Student D's notebook re-run end to end on 31 Oct returned both artefacts
+      **byte-identical** to the committed ones apart from the `created_at` timestamp — so the
+      figures quoted in the report can be reproduced exactly, not just approximately
 
 ---
 

@@ -531,11 +531,15 @@ def _start_wandb(n_trials: int):
         logger.warning("WANDB_API_KEY not set - logging offline to ./wandb")
     try:
         return wandb.init(
-            project="36120-at3-group08",
+            # Same project and env var as Student B's notebook, so the group's
+            # runs land together instead of in two separate W&B projects.
+            project=os.getenv("WANDB_PROJECT", "36120-26SP-AT3-Group08"),
             group="student_d",
-            name=f"tor-lightgbm-optuna-{n_trials}",
+            name=f"student_d_tor-lightgbm-optuna-{n_trials}",
             config={"seed": RANDOM_SEED, "n_trials": n_trials, "search_space": SEARCH_SPACE},
-            reinit=True,
+            # wandb 0.28 deprecates a boolean `reinit`; close any run left open
+            # by an earlier cell instead of nesting a second one.
+            reinit="finish_previous",
         )
     except Exception as exc:  # noqa: BLE001 - logging must never break training
         logger.warning("Could not start a wandb run (%s) - continuing without it", exc)
