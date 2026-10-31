@@ -115,3 +115,89 @@ def build_tor_target(features: pd.DataFrame, horizon: int = FORECAST_HORIZON) ->
     frame["target_TOR"] = grouped["TOR"].shift(-horizon)
 
     return frame.reset_index(drop=True)
+
+
+# Student C - Trend Category (TC), CONTRACT.md section 5
+# ==========================================================================
+
+# Ordered most bearish -> most bullish. Exact strings fixed by CONTRACT.md 5.
+TC_LABELS: Final[list[str]] = [
+    "Strong Downtrend",
+    "Downtrend",
+    "Sideways",
+    "Uptrend",
+    "Strong Uptrend",
+]
+TC_LABEL_BY_INDEX: Final[dict[int, str]] = dict(enumerate(TC_LABELS))
+
+# Features the brief mandates for the TC model.
+TC_REQUIRED_FEATURES: Final[list[str]] = ["MA5", "MA20", "Return20"]
+
+
+def trend_score(features: pd.DataFrame | dict) -> pd.Series | float:
+    """TrendScore = 0.7 * ((MA5 / MA20) - 1) + 0.3 * Return20  (Student C).
+
+    Accepts a DataFrame (returns a Series) or a mapping of scalars (returns a
+    float), so one function serves training and single-row inference.
+    """
+    scalar_input = not isinstance(features, pd.DataFrame)
+    frame = pd.DataFrame([features]) if scalar_input else features
+    score = 0.7 * ((frame["MA5"] / frame["MA20"]) - 1.0) + 0.3 * frame["Return20"]
+    return float(score.iloc[0]) if scalar_input else score
+
+
+def classify_tc(score: pd.Series | float) -> pd.Series | int:
+    """Map a TrendScore to its TC class index (0-4) with np.select.
+
+        TrendScore <  -0.10            Strong Downtrend
+        -0.10 <= TrendScore < -0.02    Downtrend
+        -0.02 <= TrendScore <= 0.02    Sideways      (both ends inclusive)
+         0.02 <  TrendScore <= 0.10    Uptrend
+        TrendScore >  0.10             Strong Uptrend
+
+    Sideways is closed on both sides, so the bands are not a plain half-open
+    `pd.cut`; `np.select` states each boundary exactly as the brief does.
+    NaN in -> NaN out (or None for a scalar).
+    """
+    scalar_input = not isinstance(score, pd.Series)
+    series = pd.Series([score], dtype="float64") if scalar_input else score
+    v = series.to_numpy(dtype="float64")
+
+    conditions = [
+        v < -0.10,
+        (v >= -0.10) & (v < -0.02),
+        (v >= -0.02) & (v <= 0.02),
+        (v > 0.02) & (v <= 0.10),
+        v > 0.10,
+    ]
+    classes = pd.Series(
+        np.select(conditions, [0, 1, 2, 3, 4], default=np.nan).astype("float64"),
+        index=series.index,
+    )
+    classes[series.isna()] = np.nan
+    if scalar_input:
+        value = classes.iloc[0]
+        return None if pd.isna(value) else int(value)
+    return classes
+
+
+def build_tc_target(features: pd.DataFrame, horizon: int = FORECAST_HORIZON) -> pd.DataFrame:
+    """Append today's TrendScore/TC and the forward-looking TC target.
+
+    Adds:
+        TrendScore         TrendScore on date t (a model feature: it is a
+                           deterministic function of Return20, MA5 and MA20)
+        TC                 TC class on date t (persistence baseline, charts)
+        target_TrendScore  TrendScore on date t+horizon
+        target_TC          TC class on date t+horizon   <- the label
+
+    The shift is applied per token, so no label crosses a token boundary.
+    """
+    frame = features.sort_values(["token", "date"]).copy()
+    frame["TrendScore"] = trend_score(frame)
+    frame["TC"] = classify_tc(frame["TrendScore"])
+
+    grouped = frame.groupby("token", sort=False)
+    frame["target_TrendScore"] = grouped["TrendScore"].shift(-horizon)
+    frame["target_TC"] = grouped["TC"].shift(-horizon)
+    return frame.reset_index(drop=True)

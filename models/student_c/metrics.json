@@ -1,0 +1,406 @@
+{
+  "model_version": "1.0.0",
+  "created_at": "2026-10-31T00:38:50+00:00",
+  "target": "Trend Category",
+  "target_description": "Five-class trend label (Strong Downtrend .. Strong Uptrend) from TrendScore = 0.7*((MA5/MA20) - 1) + 0.3*Return20, measured 7 days after the prediction date",
+  "algorithm": "XGBoost Classifier",
+  "forecast_horizon": 7,
+  "features": [
+    "Return20",
+    "MA5_MA20_Ratio",
+    "TrendScore",
+    "Return5",
+    "TrendScoreProj7"
+  ],
+  "feature_sources": {
+    "Return20": "Student A /features",
+    "MA5_MA20_Ratio": "derived: Student B MA5 / MA20",
+    "TrendScore": "derived: 0.7*(MA5/MA20 - 1) + 0.3*Return20 (needs A and B)",
+    "Return5": "Student A /features",
+    "TrendScoreProj7": "owned by Student C: flat-price projection of TrendScore at t+7 from Kraken closes"
+  },
+  "feature_importance": {
+    "TrendScoreProj7": 0.4358,
+    "MA5_MA20_Ratio": 0.194,
+    "Return20": 0.139,
+    "Return5": 0.1157,
+    "TrendScore": 0.1155
+  },
+  "classification_labels": [
+    "Strong Downtrend",
+    "Downtrend",
+    "Sideways",
+    "Uptrend",
+    "Strong Uptrend"
+  ],
+  "classification_rules": {
+    "Strong Downtrend": "TrendScore < -0.10",
+    "Downtrend": "-0.10 <= TrendScore < -0.02",
+    "Sideways": "-0.02 <= TrendScore <= 0.02",
+    "Uptrend": "0.02 < TrendScore <= 0.10",
+    "Strong Uptrend": "TrendScore > 0.10"
+  },
+  "supported_tokens": [
+    "BTC",
+    "ETH",
+    "XRP",
+    "SOL",
+    "DOGE",
+    "XLM",
+    "TRX",
+    "XMR"
+  ],
+  "metrics": {
+    "test_macro_f1": 0.4776,
+    "test_balanced_accuracy": 0.4621,
+    "test_accuracy": 0.5417,
+    "test_within_one_class": 0.8932,
+    "test_log_loss": 1.123,
+    "test_ece": 0.049
+  },
+  "metrics_note": "macro-F1 averages over all five TC labels, including any absent from the test window, so the model, baselines and per-token figures are comparable",
+  "per_class_recall": {
+    "Strong Downtrend": 0.1333,
+    "Downtrend": 0.6667,
+    "Sideways": 0.4103,
+    "Uptrend": 0.6986,
+    "Strong Uptrend": 0.4015
+  },
+  "per_class_precision": {
+    "Strong Downtrend": 0.6667,
+    "Downtrend": 0.4807,
+    "Sideways": 0.6038,
+    "Uptrend": 0.4968,
+    "Strong Uptrend": 0.8154
+  },
+  "labels_in_test": [
+    "Strong Downtrend",
+    "Downtrend",
+    "Sideways",
+    "Uptrend",
+    "Strong Uptrend"
+  ],
+  "per_token": {
+    "BTC": {
+      "accuracy": 0.5208,
+      "balanced_accuracy": 0.5599,
+      "macro_f1": 0.4146,
+      "weighted_f1": 0.5319,
+      "within_one_class": 0.9062,
+      "rows": 96
+    },
+    "DOGE": {
+      "accuracy": 0.4688,
+      "balanced_accuracy": 0.3794,
+      "macro_f1": 0.3632,
+      "weighted_f1": 0.4454,
+      "within_one_class": 0.8542,
+      "rows": 96
+    },
+    "ETH": {
+      "accuracy": 0.5833,
+      "balanced_accuracy": 0.5805,
+      "macro_f1": 0.4561,
+      "weighted_f1": 0.5674,
+      "within_one_class": 0.9167,
+      "rows": 96
+    },
+    "SOL": {
+      "accuracy": 0.5,
+      "balanced_accuracy": 0.4829,
+      "macro_f1": 0.3694,
+      "weighted_f1": 0.4937,
+      "within_one_class": 0.8542,
+      "rows": 96
+    },
+    "TRX": {
+      "accuracy": 0.5833,
+      "balanced_accuracy": 0.4778,
+      "macro_f1": 0.2211,
+      "weighted_f1": 0.6588,
+      "within_one_class": 1.0,
+      "rows": 96
+    },
+    "XLM": {
+      "accuracy": 0.4583,
+      "balanced_accuracy": 0.3402,
+      "macro_f1": 0.3412,
+      "weighted_f1": 0.4159,
+      "within_one_class": 0.8333,
+      "rows": 96
+    },
+    "XMR": {
+      "accuracy": 0.5833,
+      "balanced_accuracy": 0.3764,
+      "macro_f1": 0.2796,
+      "weighted_f1": 0.5661,
+      "within_one_class": 0.8958,
+      "rows": 96
+    },
+    "XRP": {
+      "accuracy": 0.6354,
+      "balanced_accuracy": 0.5958,
+      "macro_f1": 0.4914,
+      "weighted_f1": 0.6303,
+      "within_one_class": 0.8854,
+      "rows": 96
+    }
+  },
+  "confusion_matrix": {
+    "labels": [
+      "Strong Downtrend",
+      "Downtrend",
+      "Sideways",
+      "Uptrend",
+      "Strong Uptrend"
+    ],
+    "matrix": [
+      [
+        2,
+        13,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        112,
+        32,
+        23,
+        0
+      ],
+      [
+        0,
+        61,
+        96,
+        77,
+        0
+      ],
+      [
+        0,
+        35,
+        19,
+        153,
+        12
+      ],
+      [
+        0,
+        12,
+        12,
+        55,
+        53
+      ]
+    ]
+  },
+  "baselines": {
+    "majority_class": {
+      "accuracy": 0.2188,
+      "balanced_accuracy": 0.2,
+      "macro_f1": 0.0718,
+      "weighted_f1": 0.0785,
+      "within_one_class": 0.543
+    },
+    "stratified_random": {
+      "accuracy": 0.2148,
+      "balanced_accuracy": 0.1661,
+      "macro_f1": 0.1708,
+      "weighted_f1": 0.2242,
+      "within_one_class": 0.5924
+    },
+    "persistence": {
+      "accuracy": 0.5091,
+      "balanced_accuracy": 0.4462,
+      "macro_f1": 0.4675,
+      "weighted_f1": 0.5067,
+      "within_one_class": 0.8307
+    },
+    "flat_price_projection": {
+      "accuracy": 0.5911,
+      "balanced_accuracy": 0.4629,
+      "macro_f1": 0.4679,
+      "weighted_f1": 0.5798,
+      "within_one_class": 0.9167
+    },
+    "xgboost_defaults": {
+      "accuracy": 0.4909,
+      "balanced_accuracy": 0.4262,
+      "macro_f1": 0.4284,
+      "weighted_f1": 0.4915,
+      "within_one_class": 0.8672
+    }
+  },
+  "feature_set_comparison": {
+    "A_required_raw": {
+      "n_features": 3,
+      "cv_macro_f1": 0.265,
+      "cv_std": 0.0304,
+      "validation_macro_f1": 0.3081
+    },
+    "B_raw_plus_all": {
+      "n_features": 10,
+      "cv_macro_f1": 0.3658,
+      "cv_std": 0.0302,
+      "validation_macro_f1": 0.3918
+    },
+    "C_scale_free_core": {
+      "n_features": 5,
+      "cv_macro_f1": 0.4005,
+      "cv_std": 0.0552,
+      "validation_macro_f1": 0.4372
+    },
+    "D_scale_free_plus_vol": {
+      "n_features": 8,
+      "cv_macro_f1": 0.3851,
+      "cv_std": 0.035,
+      "validation_macro_f1": 0.4125
+    },
+    "E_scale_free_plus_own": {
+      "n_features": 10,
+      "cv_macro_f1": 0.3756,
+      "cv_std": 0.0297,
+      "validation_macro_f1": 0.4066
+    },
+    "_cv_rule_baselines": {
+      "persistence": 0.3748,
+      "flat_price_projection": 0.4223
+    }
+  },
+  "model_selection": {
+    "none": {
+      "best_cv_macro_f1": 0.418,
+      "validation_accuracy": 0.549,
+      "validation_balanced_accuracy": 0.4356,
+      "validation_macro_f1": 0.4473,
+      "validation_weighted_f1": 0.524,
+      "validation_within_one_class": 0.9214
+    },
+    "balanced": {
+      "best_cv_macro_f1": 0.4057,
+      "validation_accuracy": 0.4407,
+      "validation_balanced_accuracy": 0.4183,
+      "validation_macro_f1": 0.388,
+      "validation_weighted_f1": 0.4449,
+      "validation_within_one_class": 0.9059
+    }
+  },
+  "augmentation_ablation": {
+    "trained_clean": {
+      "macro_f1_all_peers_up": 0.4368,
+      "macro_f1_student_a_down": 0.3309,
+      "macro_f1_student_b_down": 0.3961
+    },
+    "trained_augmented": {
+      "macro_f1_all_peers_up": 0.4776,
+      "macro_f1_student_a_down": 0.4353,
+      "macro_f1_student_b_down": 0.4842
+    }
+  },
+  "degradation": {
+    "all_peers_available": {
+      "accuracy": 0.5417,
+      "balanced_accuracy": 0.4621,
+      "macro_f1": 0.4776,
+      "weighted_f1": 0.5334,
+      "within_one_class": 0.8932
+    },
+    "student_a_down": {
+      "accuracy": 0.4974,
+      "balanced_accuracy": 0.431,
+      "macro_f1": 0.4353,
+      "weighted_f1": 0.4748,
+      "within_one_class": 0.8932
+    },
+    "student_b_down": {
+      "accuracy": 0.5664,
+      "balanced_accuracy": 0.472,
+      "macro_f1": 0.4842,
+      "weighted_f1": 0.5629,
+      "within_one_class": 0.8854
+    },
+    "all_peers_down": {
+      "accuracy": 0.5299,
+      "balanced_accuracy": 0.4642,
+      "macro_f1": 0.4837,
+      "weighted_f1": 0.519,
+      "within_one_class": 0.8958
+    }
+  },
+  "training_period": {
+    "start": "2024-11-22",
+    "end": "2026-07-04"
+  },
+  "split": {
+    "train": {
+      "rows": 3888,
+      "start": "2024-11-22",
+      "end": "2026-03-22",
+      "class_balance": {
+        "Strong Downtrend": 0.1237,
+        "Downtrend": 0.3158,
+        "Sideways": 0.2222,
+        "Uptrend": 0.2346,
+        "Strong Uptrend": 0.1037
+      }
+    },
+    "validation": {
+      "rows": 776,
+      "start": "2026-03-30",
+      "end": "2026-07-04",
+      "class_balance": {
+        "Strong Downtrend": 0.0825,
+        "Downtrend": 0.3415,
+        "Sideways": 0.2655,
+        "Uptrend": 0.2771,
+        "Strong Uptrend": 0.0335
+      }
+    },
+    "test": {
+      "rows": 768,
+      "start": "2026-07-12",
+      "end": "2026-10-15",
+      "class_balance": {
+        "Strong Downtrend": 0.0195,
+        "Downtrend": 0.2188,
+        "Sideways": 0.3047,
+        "Uptrend": 0.2852,
+        "Strong Uptrend": 0.1719
+      }
+    }
+  },
+  "best_params": {
+    "learning_rate": 0.2216888426537831,
+    "max_depth": 5,
+    "min_child_weight": 2.3721369554855096,
+    "subsample": 0.5035287188633475,
+    "colsample_bytree": 0.8892016965842912,
+    "gamma": 4.35910394948163,
+    "reg_alpha": 0.08857600965028044,
+    "reg_lambda": 0.32371104434040615,
+    "n_estimators": 102,
+    "class_balance": "none"
+  },
+  "best_cv_macro_f1": 0.418,
+  "cv_strategy": "TimeSeriesSplit(n_splits=5, gap=7) over the DISTINCT DATES of the training period, so folds are ordered in time and the gap purges 7 days",
+  "search_space": {
+    "learning_rate": "log-uniform [0.005, 0.30]",
+    "max_depth": "int [2, 8]",
+    "min_child_weight": "log-uniform [0.5, 50]",
+    "subsample": "uniform [0.5, 1.0]",
+    "colsample_bytree": "uniform [0.5, 1.0]",
+    "gamma": "uniform [0.0, 5.0] (min loss reduction to split)",
+    "reg_alpha": "log-uniform [1e-8, 10.0] (L1)",
+    "reg_lambda": "log-uniform [1e-3, 20.0] (L2)",
+    "n_estimators": "int [100, 700] (tuned; no early stopping, which would select the round count on the fold being scored)",
+    "class_balance": "NOT searched by TPE: two separate studies are run, one with 'none' and one with 'balanced' (sklearn compute_sample_weight('balanced') as sample_weight); the winner is chosen on the held-out VALIDATION split",
+    "cv": "TimeSeriesSplit(n_splits=5, gap=7) over the DISTINCT DATES of the training period only, so the gap purges 7 days and not 7 rows",
+    "objective": "maximise mean macro-F1 across the 5 CV folds, all 5 labels"
+  },
+  "n_trials": 50,
+  "random_seed": 42,
+  "data_source": "Kraken public REST API /0/public/OHLC (interval=1440), via the committed snapshot data/raw/kraken_daily_ohlcv.csv",
+  "library_versions": {
+    "xgboost": "3.3.0",
+    "optuna": "4.9.0",
+    "pandas": "2.2.2"
+  }
+}
