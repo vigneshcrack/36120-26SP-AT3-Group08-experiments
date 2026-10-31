@@ -81,11 +81,11 @@ The exact formulas, thresholds and label strings are in `CONTRACT.md` §5.
 | Component | Repository | Deployment |
 |---|---|---|
 | Experiments (this repo) | `36120-26SP-AT3-Group08-experiments` | – |
-| Streamlit front-end | `36120-26SP-AT3-Group08-streamlit` | _Streamlit Community Cloud URL – add after deployment_ |
-| Student A API | _TBC_ | _TBC_ |
+| Streamlit front-end | `36120-26SP-AT3-Group08-streamlit` | https://group08-crypto-intelligence.streamlit.app |
+| Student A API | [`36120-26SP-AT3-StudentA-api`](https://github.com/rmcruikshank/36120-26SP-AT3-StudentA-api) | https://group08-studenta-api-api.onrender.com |
 | Student B API | `36120-26SP-AT3-Group08-StudentB-api` | https://group08-studentb-mri-api.onrender.com |
-| Student C API | _TBC_ | _TBC_ |
-| Student D API | _TBC_ | _TBC_ |
+| Student C API | [`36120-26SP-AT3-Group08-StudentC-api`](https://github.com/nandeeswari19-web/36120-26SP-AT3-Group08-StudentC-api) | https://three6120-26sp-at3-group08-studentc-api.onrender.com |
+| Student D API | [`36120-26SP-AT3-Group08-StudentD-api`](https://github.com/VincentBui25/36120-26SP-AT3-Group08-StudentD-api) | https://three6120-26sp-at3-group08-studentd-api-1.onrender.com |
 
 All repositories are private. The teaching staff listed in the brief have administrator access.
 
