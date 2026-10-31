@@ -86,7 +86,7 @@ The exact formulas, thresholds and label strings are in `CONTRACT.md` §5.
 | Student A API | _TBC_ | _TBC_ |
 | Student B API | `36120-26SP-AT3-Group08-StudentB-api` | https://group08-studentb-mri-api.onrender.com |
 | Student C API | `36120-26SP-AT3-Group08-StudentC-api`| https://three6120-26sp-at3-group08-studentc-api.onrender.com|
-| Student D API | `36120-26SP-AT3-Group08-StudentD-api` | _TBC_ |
+| Student D API | `36120-26SP-AT3-Group08-StudentD-api` | https://three6120-26sp-at3-group08-studentd-api-1.onrender.com |
 
 All repositories are private. The teaching staff listed in the brief have administrator access.
 
