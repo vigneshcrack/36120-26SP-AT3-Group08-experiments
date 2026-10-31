@@ -85,7 +85,7 @@ The exact formulas, thresholds and label strings are in `CONTRACT.md` §5.
 | Streamlit front-end | `36120-26SP-AT3-Group08-streamlit` | _Streamlit Community Cloud URL – add after deployment_ |
 | Student A API | _TBC_ | _TBC_ |
 | Student B API | `36120-26SP-AT3-Group08-StudentB-api` | https://group08-studentb-mri-api.onrender.com |
-| Student C API | _TBC_ | _TBC_ |
+| Student C API | `36120-26SP-AT3-Group08-StudentC-api`| https://three6120-26sp-at3-group08-studentc-api.onrender.com|
 | Student D API | `36120-26SP-AT3-Group08-StudentD-api` | _TBC_ |
 
 All repositories are private. The teaching staff listed in the brief have administrator access.
