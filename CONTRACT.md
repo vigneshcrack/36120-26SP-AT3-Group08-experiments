@@ -300,7 +300,7 @@ fastapi[standard] 0.139.0 · uvicorn 0.50.0 · joblib 1.5.3 · xgboost 3.3.0 · 
 | Streamlit | `36120-26SP-AT3-Group08-streamlit` | _TBC_ |
 | Student A API | `36120-26SP-AT3-Group08-StudentA-api` | _TBC_ |
 | Student B API | `36120-26SP-AT3-Group08-StudentB-api` | _TBC_ |
-| Student C API | `36120-26SP-AT3-Group08-StudentC-api` | _TBC_ |
+| Student C API | `36120-26SP-AT3-Group08-StudentC-api` |`https://three6120-26sp-at3-group08-studentc-api.onrender.com/`|
 | Student D API | `36120-26SP-AT3-Group08-StudentD-api` | _TBC_ |
 
 All six repositories are private, give administrator access to the nine teaching staff

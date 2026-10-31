@@ -14,7 +14,7 @@
 | **Assessment** | AT3 – Data Product with Machine Learning |
 | **Group** | 08 |
 | **Integration contract** | [`CONTRACT.md`](CONTRACT.md): tokens, feature formulas, API format, errors, conventions |
-| **Shared feature package** | [`mykrml-25740287` v0.3.0](https://test.pypi.org/project/mykrml-25740287/) (TestPyPI) |
+| **Shared feature package** | [`mykrml-25740287` v0.3.0](https://test.pypi.org/project/mykrml-25740287/) (TestPyPI), mirrored by `at3_crypto/engineered_features.py` — kept identical by [`tests/test_feature_parity.py`](tests/test_feature_parity.py) |
 
 ---
 
@@ -27,13 +27,14 @@
 6. [Command-line pipeline](#6-command-line-pipeline)
 7. [Shared experimental conventions](#7-shared-experimental-conventions)
 8. [Results – Student B (Market Risk Index)](#8-results--student-b-market-risk-index)
-9. [Data management](#9-data-management)
-10. [Project organisation](#10-project-organisation)
-11. [Testing and code quality](#11-testing-and-code-quality)
-12. [Collaboration workflow](#12-collaboration-workflow)
-13. [Reproducibility checklist](#13-reproducibility-checklist)
-14. [Troubleshooting](#14-troubleshooting)
-15. [AI usage acknowledgement](#15-ai-usage-acknowledgement)
+9. [Results – Student D (Trading Opportunity Rating)](#9-results--student-d-trading-opportunity-rating)
+10. [Data management](#10-data-management)
+11. [Project organisation](#11-project-organisation)
+12. [Testing and code quality](#12-testing-and-code-quality)
+13. [Collaboration workflow](#13-collaboration-workflow)
+14. [Reproducibility checklist](#14-reproducibility-checklist)
+15. [Troubleshooting](#15-troubleshooting)
+16. [AI usage acknowledgement](#16-ai-usage-acknowledgement)
 
 ---
 
@@ -115,6 +116,20 @@ uv run jupyter lab
 
 The shared package `mykrml-25740287` is installed from TestPyPI. Only that package uses the TestPyPI index; everything else comes from PyPI. This is configured in `pyproject.toml` (`[tool.uv.sources]`).
 
+The contract's feature formulas exist in two places, and the reason matters for anyone
+reading `at3_crypto/`:
+
+| Implementation | Used by |
+|---|---|
+| `mykrml_25740287.features.crypto` | `at3_crypto/features.py`, `at3_crypto/dataset.py`, Student B's modelling |
+| `at3_crypto/engineered_features.py` | Student D's notebook and pipeline, and vendored verbatim into the Student D FastAPI service |
+
+Student D's service has to be independently deployable, so it cannot install a TestPyPI
+package at runtime — hence the second copy. That turns `CONTRACT.md` §4's "one code path"
+into something that must be verified rather than something the code guarantees, so
+`tests/test_feature_parity.py` compares the two on all 13 contract features across every
+row of the snapshot, values and NaN positions alike. They currently agree exactly.
+
 **Pinned versions, as required by the brief:**
 - Python 3.12.13, pandas 2.2.2, jupyterlab 4.6.1, scikit-learn 1.6.1, matplotlib 3.11.0
 - wandb 0.28.0, lightgbm 4.6.0, xgboost 3.3.0, optuna 4.9.0, lime 0.2.0.1, joblib 1.5.3
@@ -132,10 +147,16 @@ Each student works in their own notebook folder. To reproduce a notebook:
 
 | Notebook | Owner | Artefacts written |
 |---|---|---|
-| `notebooks/student_a/` | Student A | `models/student_a/`, `data/processed/student_a/` |
+| `notebooks/student_a/36120_26SP_AT3_08_13191263_experiment_1.ipynb` (baseline)<br>`..._experiment_2.ipynb` (multi-asset) | Student A | `models/student_a/` |
 | `notebooks/student_b/36120_26SP_AT3_08_25740287_experiment.ipynb` | Student B | `models/student_b/`, `data/processed/student_b/`, `reports/figures/student_b/` |
-| `notebooks/student_c/` | Student C | `models/student_c/`, `data/processed/student_c/` |
-| `notebooks/student_d/` | Student D | `models/student_d/`, `data/processed/student_d/` |
+| `notebooks/student_c/36120_26SP_AT3_08_25980436_experiment.ipynb` | Student C | `models/student_c/`, `data/processed/student_c/`, `reports/figures/student_c/` |
+| `notebooks/student_d/36120_26SP_AT3_08_26160438_experiment.ipynb` | Student D | `models/student_d/`, `data/processed/student_d/`, `reports/figures/student_d/` |
+
+** Student A's two notebooks are
+merged with their model artefacts but no `reports/figures/student_a/`, so the figures in
+Student A's report cannot currently be traced back to a run here. Deliverable 1 is a single
+ZIP for the whole group, so both gaps are visible to a marker; they are tracked in
+[`docs/meetings/2026-10-29.md`](docs/meetings/2026-10-29.md) §5.
 
 **The notebooks follow the subject template:**
 - A – project description
@@ -148,7 +169,9 @@ Each student works in their own notebook folder. To reproduce a notebook:
 - J – training and evaluation
 - outcomes and next steps
 
-The Student B notebook reads the dated Kraken snapshot in `data/raw/`, so its results are reproducible. Set `REFRESH_DATA = True` in section C.1 to download a new one.
+Every notebook reads the dated Kraken snapshot in `data/raw/`, so results are reproducible: Kraken only ever
+serves the latest 720 candles, so fetching live would move the window and change every number on each re-run. Set
+`REFRESH_DATA = True` in section C.1 to download a new snapshot instead.
 
 ---
 
@@ -163,6 +186,8 @@ The `at3_crypto` package provides scripts for each pipeline step, so the main st
 | `make evaluate` | Re-fits the selected Student B configuration on train + validation and scores the test period. It reproduces **MAE 3.70 vs 3.91 for persistence** |
 | `make train` | Re-fits both Student B models on all labelled data and writes `models/student_b/mri_lightgbm_retrained.joblib`. The official bundle is not touched |
 | `make predict` | Forecasts next week's Market Risk Index for every token with the saved bundle |
+| `uv run python -m at3_crypto.modeling.student_c_tc --trials 50` | Re-runs Student C's full TC pipeline (feature-set ablation, 2 × 50 Optuna trials, validation-based selection, refit, evaluation) and rewrites `models/student_c/` |
+| `make tor` | Re-runs Student D's full TOR pipeline (split, 40 Optuna trials, refit, evaluation) and rewrites `models/student_d/` |
 | `make test` / `make lint` / `make format` | Runs the tests, checks the code style, or reformats the code |
 
 The same commands work without `make`, for example `uv run python -m at3_crypto.modeling.train --evaluate`.
@@ -176,19 +201,19 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 | Area | Rule |
 |---|---|
 | Data | Kraken public OHLC API, daily USD candles, last 720 complete days. The same source is used for training and serving |
-| Features | Computed only by the shared package, so all four models and services use identical definitions |
+| Features | One definition per formula, with the exact JSON keys in `CONTRACT.md` §4. Students A–C call the published package; Student D's path uses `at3_crypto/engineered_features.py`, because that service vendors its feature code to stay independently deployable and cannot import from TestPyPI at runtime. The two are checked against each other on every contract feature and every snapshot row by `tests/test_feature_parity.py`, so "identical definitions" is enforced rather than assumed |
 | Labels | Index at t+7, created within each token. Inputs use information up to day t only |
 | Split | Chronological by date across all tokens, about 70/15/15, with a **7-day purge gap** before validation and before test. Never random |
-| Tuning | Optuna (TPE, `seed=42`) with 5-fold `TimeSeriesSplit(gap=7)` on the training period only |
+| Tuning | Optuna (TPE, `seed=42`) with 5-fold `TimeSeriesSplit(gap=7)` on the training period only. **Apply the split to the distinct *dates*, not to the rows:** the modelling frame is a panel of 8 tokens per date, so splitting rows cuts it by token (each fold's validation set then spans its own training dates) and `gap=7` purges 7 rows instead of 7 days |
 | Baselines | Mean or majority class **and** persistence (today's value as the 7-day forecast) |
 | Metrics | Regression: MAE (primary), RMSE, R². Classification: macro-F1 (primary), balanced accuracy, per-class recall, log-loss |
-| Evaluation | The test set is scored once. The deployed model is refitted on all data with the selected settings |
+| Evaluation | The test set is scored once. The deployed model is refitted with the selected settings — Student D refits on train + validation only, so the reported figures describe the artefact that is actually served |
 | Tracking | Optuna trials and final metrics logged to Weights & Biases |
 | Robustness | Models must keep predicting when a peer feature is missing (NaN). The degradation is measured |
 
 ---
 
-## 8. Results – Student B (Market Risk Index)
+## 8a. Results – Student B (Market Risk Index)
 
 | Item | Result |
 |---|---|
@@ -207,6 +232,133 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 - `reports/figures/student_b/`: the figures used in the report.
 
 ---
+
+## 8b. Results - Student D (Trading Opportunity Rating)
+
+| Item | Result |
+|---|---|
+| Data | 8 tokens × 720 days → 5,432 labelled token-days after the 20-day warm-up and the 7-day shift |
+| Split | Train 3,888 · validation 776 · test 768 rows, with 7-day purge gaps |
+| Selected inputs | Return20, RelativeVolume, Volatility20, MA5, MA20, plus MA5_MA20_Ratio (the brief's T) and OS (today's Opportunity Score) |
+| Final model | LightGBM 5-class classifier, refit on train + validation with missing-feature augmentation |
+| Optuna | 40 trials, TimeSeriesSplit(5, gap=7) over the training **dates**; best CV macro-F1 0.3546 |
+| **Test** | **macro-F1 0.3424, balanced accuracy 0.4552, accuracy 0.4648, log-loss 1.1186, ECE 0.0950** |
+| Baselines | persistence 0.3646 · default LightGBM 0.2933 · stratified random 0.1963 · majority class 0.1176 |
+| Outcome | Hypothesis partially confirmed. Clearly beats majority class, random and default LightGBM, and beats persistence on balanced accuracy (0.455 vs 0.447), but **not on macro-F1** (0.342 vs 0.365). Next step: model the rating *delta* rather than the level |
+
+All F1 figures average over **all five** labels, including `Strong Sell`, which does not occur in the test window at all
+(`labels_in_test` in `metrics.json` records this). Averaging only the observed labels would raise the headline number
+while making it incomparable with the baselines and the per-token table.
+
+**Artefacts:**
+- `models/student_d/tor_lightgbm.joblib`: the fitted classifier, feature list, label map and all `/model-metadata` fields.
+- `models/student_d/metrics.json`: all metadata, served by the API's `/model-metadata`.
+- `reports/figures/student_d/`: the figures used in the report — the target distribution, the three
+  features of interest, the feature correlation and screening importance, the two engineered
+  features, the Optuna search history (`optuna_history.png`) and the test diagnostics
+  (`j4_test_diagnostics.png`: confusion matrix and gain importance). All are written by the
+  notebook, so none can disagree with the run that produced the artefact.
+
+The Optuna trials are logged to Weights & Biases under the project `WANDB_PROJECT`
+(default `36120-26SP-AT3-Group08`, the same project Student B uses) in the group
+`student_d`. Without `WANDB_API_KEY` the run is written offline to `./wandb` and can be
+synced later, so a missing key degrades the tracking rather than failing the training.
+
+---
+## 8c. Results – Student C (Trend Category)
+
+| Item | Result |
+|---|---|
+| Target | Trend Category at **t+7** from TrendScore = 0.7·(MA5/MA20 − 1) + 0.3·Return20, cut into 5 classes (Strong Downtrend < −0.10 ≤ Downtrend < −0.02 ≤ Sideways ≤ 0.02 < Uptrend ≤ 0.10 < Strong Uptrend) |
+| Data | 8 tokens × 720 days → 5,544 labelled token-days (5,432 after purge gaps) |
+| Split | Train 3,888 (22 Nov 2024 – 22 Mar 2026) · validation 776 (30 Mar – 4 Jul 2026) · test 768 (12 Jul – 15 Oct 2026), with 7-day purge gaps |
+| Selected inputs | Return20, Return5 (Student A), MA5_MA20_Ratio and today's TrendScore (from Student B's MA5/MA20 + A's Return20), and **TrendScoreProj7** (Student C's own engineered feature) |
+| Final model | XGBoost 5-class classifier (`multi:softprob`, `hist`), refit on train + validation with missing-feature augmentation |
+| Optuna | Two 50-trial TPE studies (seed 42), with and without class balancing, TimeSeriesSplit(5, gap=7) over the training **dates**; winner chosen on validation |
+| **Test** | **macro-F1 0.4776, balanced accuracy 0.4621, accuracy 0.5417, within-one-class 0.8932, log-loss 1.123, ECE 0.049** |
+| Baselines | flat-price projection 0.4679 · persistence 0.4675 · default XGBoost 0.4284 · stratified random 0.1708 · majority class 0.0718 |
+| Resilience | macro-F1 0.478 all peers up · 0.435 Student A down · 0.484 Student B down · 0.484 both down |
+| Outcome | Hypothesis partially confirmed. Beats every baseline on macro-F1 and balanced accuracy, with well-calibrated confidence and strong peer-failure resilience, but the margin over persistence and the projection rule is small |
+
+### The key engineered feature – `TrendScoreProj7`
+
+On day *t*, 13 of the 20 closes inside MA20(t+7), and the base price of Return20(t+7), are already known. Assuming the next 7 closes equal today's close gives a leakage-free projection of next week's TrendScore:
+
+```
+MA5(t+7)      = C_t
+MA20(t+7)     = (C_t-12 + … + C_t + 7·C_t) / 20
+Return20(t+7) = C_t / C_t-13 − 1
+```
+
+Correlation with the true TrendScore(t+7) rises from **0.699** (today's TrendScore) to **0.773**, and as a stand-alone rule it agrees with the true class on 59 % of rows vs 51 % for persistence. It is computed by the Student C service from Kraken closes, so it is available even when Students A and B are both down. It is also the model's most important input (44 % of total gain).
+
+### Feature selection (fixed screening configuration, test set untouched)
+
+| Feature set | Inputs | CV macro-F1 | Validation macro-F1 |
+|---|---|---|---|
+| A – required, raw | Return20, MA5, MA20 | 0.265 | 0.308 |
+| B – raw + everything | A + ratio, TrendScore, Vol20, MaxDrawdown, GapRisk, Return5, Proj7 | 0.366 | 0.392 |
+| **C – scale-free core (selected)** | Return20, MA5_MA20_Ratio, TrendScore, Return5, TrendScoreProj7 | **0.401** | **0.437** |
+| D – C + MA/close + Volatility20 | | 0.385 | 0.413 |
+| E – C + MA/close + all own features | | 0.376 | 0.407 |
+
+Rule baselines on the same CV folds: persistence 0.375, flat-price projection 0.422.
+
+MA5 and MA20 are price levels that differ by five orders of magnitude between coins (DOGE ≈ 0.2 USD, BTC ≈ 80,000 USD). In a pooled model they act as a coin identifier, so they are used through their scale-free ratio and through TrendScore. Volatility20, MaxDrawdown and GapRisk added redundancy, not signal; they remain published on Student C's `/features` for the other services.
+
+### Model selection and hyperparameters
+
+| Study | Best CV macro-F1 | Validation macro-F1 |
+|---|---|---|
+| **No class balancing (selected)** | **0.4180** | **0.4473** |
+| Balanced sample weights | 0.4057 | 0.3880 |
+
+Selected parameters: learning_rate 0.222, max_depth 5, min_child_weight 2.37, subsample 0.50, colsample_bytree 0.89, gamma 4.36, reg_alpha 0.089, reg_lambda 0.324, n_estimators 102. No early stopping is used (`n_estimators` is searched instead), so no fold is scored on rows it stopped on.
+
+### Test results in detail
+
+| Class | Recall | Precision |
+|---|---|---|
+| Strong Downtrend | 0.133 | 0.667 |
+| Downtrend | 0.667 | 0.481 |
+| Sideways | 0.410 | 0.604 |
+| Uptrend | 0.699 | 0.497 |
+| Strong Uptrend | 0.402 | 0.815 |
+
+- **Errors are mostly one class out:** 89 % of forecasts are the right class or a neighbour. Opposite-direction errors (an up class predicted for a down outcome, or the reverse) are 70 of 768 (9.1 %).
+- **Strong Downtrend** is only 1.9 % of the test period (12.4 % of training), so its recall is noisy.
+- **Calibration:** ECE 0.049, so the confidence shown in the app closely matches how often the model is right.
+- **Per token macro-F1:** XRP 0.491 · ETH 0.456 · BTC 0.415 · SOL 0.369 · DOGE 0.363 · XLM 0.341 · XMR 0.280 · TRX 0.221. Low-volatility coins rarely reach the strong classes, so one wrong strong call weighs heavily.
+- **Gain importance:** TrendScoreProj7 0.436 · MA5_MA20_Ratio 0.194 · Return20 0.139 · Return5 0.116 · TrendScore 0.116.
+
+### Missing-feature augmentation (CONTRACT.md §7)
+
+| Training | All peers up | Student A down | Student B down |
+|---|---|---|---|
+| Without augmentation | 0.437 | 0.331 | 0.396 |
+| **With augmentation (deployed)** | **0.478** | **0.435** | **0.484** |
+
+Augmentation improved the healthy case as well as the degraded ones.
+
+### Reproduce
+
+```bash
+uv run python -m at3_crypto.modeling.student_c_tc --trials 50   # or run the notebook top to bottom
+uv run pytest tests/test_student_c.py
+```
+
+Re-running the notebook reproduces the committed artefacts exactly (same metrics and best parameters).
+
+**Artefacts:**
+- `models/student_c/tc_xgboost.joblib` (+ `tc_xgboost.json`, XGBoost native format): the fitted classifier, feature list and labels.
+- `models/student_c/metrics.json`: all metadata, served by the API's `GET /model-metadata`.
+- `reports/figures/student_c/`: the 13 report figures (target distribution, transition matrix, feature EDA, feature-set ablation, projection, split, Optuna history, test diagnostics, degradation).
+- `notebooks/student_c/36120_26SP_AT3_08_25980436_experiment.ipynb`: the full experiment.
+
+**Deployment:** [Student C API](https://three6120-26sp-at3-group08-studentc-api.onrender.com) · repo `nandeeswari19-web/36120-26SP-AT3-Group08-StudentC-api`
+
+---
+
 
 ## 9. Data management
 
@@ -241,19 +393,33 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 │   └── meetings         <- Meeting minutes (YYYY-MM-DD.md from _template.md)
 ├── models               <- Final model artefacts and metrics, one sub-folder per student
 ├── notebooks            <- Experiment notebooks, one sub-folder per student
-├── references           <- Data dictionaries and API notes
+├── references           <- Data dictionaries and API notes (placeholder; CONTRACT.md §3-§5
+│                           currently holds the pair mapping and the formulas)
 ├── reports
 │   └── figures          <- Figures used in the final report, one sub-folder per student
-├── tests                <- Tests for the shared code and the Student B artefacts
+├── tests                <- Shared code, the Student B artefacts, Student D's pipeline,
+│                           and the parity check between the two feature implementations
 └── at3_crypto           <- Shared project code
     ├── config.py        <- Project paths and .env loading
+    ├── kraken.py        <- Kraken OHLC client: pair mapping, 15-min cache, retries,
+    │                       drops the in-progress candle (CONTRACT.md §3)
     ├── dataset.py       <- Download / load the Kraken snapshot
+    ├── engineered_features.py  <- The 13 contract features (§4) with their exact JSON keys
     ├── features.py      <- Build the labelled Market Risk dataset with the shared package
+    ├── targets.py       <- Target construction and the TOR bands (§5)
     ├── plots.py         <- Reusable report figures
     └── modeling
-        ├── train.py     <- Re-fit and evaluate the selected Student B configuration
-        └── predict.py   <- Forecast next week's risk for every token
+        ├── train.py          <- Re-fit and evaluate the selected Student B configuration
+        ├── predict.py        <- Forecast next week's risk for every token
+        └── student_d_tor.py  <- Student D's full TOR pipeline: purged split, Optuna study,
+                                 baselines, missing-feature augmentation, evaluation,
+                                 degradation table and the metrics.json the API serves
 ```
+
+`kraken.py`, `engineered_features.py` and `targets.py` are the three modules the Student D
+service vendors (as `app/core/data.py`, `features.py` and `target.py`). They are maintained
+here and copied there by that repository's `scripts/sync_core.sh`, never edited on the
+service side.
 
 ---
 
@@ -264,13 +430,41 @@ make test      # = uv run pytest tests
 make lint      # ruff format --check + ruff check
 ```
 
-The tests run offline on the committed snapshot and check:
+The tests run offline on the committed snapshot. Shared and Student B (`tests/test_data.py`):
 - **The snapshot:** exactly 8 tokens × 720 consecutive days, no duplicates, and valid OHLC invariants.
 - **The labels:** every label equals the MRI exactly seven calendar days later.
 - **The dataset and split:** 5,544 labelled rows, 8 latest rows set aside, a 3,824 / 776 / 832 split, and purge gaps longer than 7 days.
 - **The saved bundle:** it loads and forecasts every token within 0–100.
 
+Student D (`tests/test_student_d.py`):
+- **The feature formulas:** `VolumeSMA20` and `RelativeVolume` against hand computations, the peer-owned formulas against
+  the contract's definitions, and that no rolling window ever spans two tokens.
+- **The TOR bands:** every boundary in CONTRACT.md §5, inclusive side included, plus NaN propagation.
+- **The t+7 shift:** the label equals today's rating seven rows later, per token, and the last 7 rows carry no label.
+- **The in-progress candle:** it is dropped by default (a fake Kraken session, so the test needs no network).
+- **The cross-validation scheme:** folds are ordered in time, every seam purges more than 7 days, all 8 tokens appear on
+  both sides of every fold, and row order cannot change which dates land in which fold.
+- **The augmentation:** it doubles the rows, leaves the originals untouched, never masks Student-D-owned features, and is
+  reproducible from its seed.
+- **The metrics:** F1 averages over all five labels, and probabilities are widened to all five even when a rating is
+  absent from training.
+
+Both implementations of CONTRACT.md §4 (`tests/test_feature_parity.py`):
+- **The names:** every contract feature exists under its exact JSON key on both sides. This is the
+  check that `VolumeSMA20` has not become `SMA20Volume` on one side only — a rename that made
+  Student D's published feature unreadable by every consumer once already.
+- **The values:** all 13 features compared across every row of the snapshot, requiring an
+  **exact** match, not a tolerance — both are pandas rolling windows over identical inputs, so
+  any difference means the definitions have genuinely diverged.
+- **The NaN positions:** a different warm-up length or grouping changes how many rows each model
+  can train on, so a mismatch there is caught separately from a value mismatch.
+- The suite itself is guarded: an empty or partial overlap would otherwise pass silently.
+
 The shared package has its own suite of 48 tests in its repository.
+
+Student C (`tests/test_student_c.py`):
+- **The TC bands:** every boundary in CONTRACT.md §5, including that Sideways is closed on both ends, plus NaN handling.
+- **The t+7 label:** equals TC seven rows later, per token;
 
 ---
 
@@ -279,7 +473,7 @@ The shared package has its own suite of 48 tests in its repository.
 - **Protected `main`:** direct pushes are blocked. Every change needs a pull request with at least one approving review.
 - **Branch names:** `student-<a|b|c|d>/<topic>` (for example `student-b/mri-experiment`), or `setup/<topic>` for shared work.
 - **Merging experiments:** each student merges their best experiment into `main` through a pull request.
-- **Escalation:** under `CONTRACT.md` §11, if no review arrives within 24 hours and a milestone is at risk, the group lead may merge with the owner's bypass. The reason and the passing checks are recorded on the pull request.
+- **Escalation:** if no review arrives within 24 hours and a milestone is at risk, the group lead may merge with the owner's bypass, recording the reason and the passing checks on the pull request. **This is a working convention, not a contract clause.** Earlier versions of this section cited `CONTRACT.md` §11; `CONTRACT.md` has sections 1–10 and no §11, so the clause could not be invoked when it was actually needed on 29 Oct (see [`docs/meetings/2026-10-29.md`](docs/meetings/2026-10-29.md) §1). Adding it to the contract is action item 23.
 - **Contract changes:** any change to `CONTRACT.md` goes through a pull request, and its change log records every version.
 - **Meetings:** minuted in `docs/meetings/YYYY-MM-DD.md`, using [`_template.md`](docs/meetings/_template.md). Each record covers attendance, decisions, and action items with an owner and due date.
 
@@ -288,11 +482,15 @@ The shared package has its own suite of 48 tests in its repository.
 ## 13. Reproducibility checklist
 
 - [x] Pinned Python and package versions (`.python-version`, `pyproject.toml`, `uv.lock`, `requirements.txt`)
-- [x] Dated data snapshot committed. Notebooks read it unless `REFRESH_DATA = True`
+- [x] Dated data snapshot committed. Every notebook reads it unless `REFRESH_DATA = True`
 - [x] Fixed seeds (42) and deterministic LightGBM (`deterministic=True`, `force_row_wise=True`)
+- [x] Every quoted figure in the notebooks is interpolated from the run, never transcribed, so prose cannot drift from results
 - [x] No hard-coded local paths. All paths are built from the project root (`at3_crypto/config.py`)
 - [x] Secrets only in `.env`, which is git-ignored
-- [x] Test result reproducible from the command line (`make evaluate`)
+- [x] Test result reproducible from the command line (`make evaluate` for Student B, `make tor` for Student D)
+- [x] Student D's notebook re-run end to end on 31 Oct returned both artefacts
+      **byte-identical** to the committed ones apart from the `created_at` timestamp — so the
+      figures quoted in the report can be reproduced exactly, not just approximately
 
 ---
 

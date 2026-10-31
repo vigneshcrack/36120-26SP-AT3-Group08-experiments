@@ -62,10 +62,40 @@ create_environment:
 #################################################################################
 
 
-## Make dataset
+## Download a new Kraken snapshot of all 8 tokens into data/raw/
 .PHONY: data
 data: requirements
-	$(PYTHON_INTERPRETER) at3_crypto/dataset.py
+	$(PYTHON_INTERPRETER) -m at3_crypto.dataset
+
+
+## Build the labelled Market Risk dataset into data/interim/
+.PHONY: features
+features:
+	$(PYTHON_INTERPRETER) -m at3_crypto.features
+
+
+## Re-fit the selected Student B configuration and score the test period once
+.PHONY: evaluate
+evaluate:
+	$(PYTHON_INTERPRETER) -m at3_crypto.modeling.train --evaluate
+
+
+## Re-fit the Student B models on all labelled data
+.PHONY: train
+train:
+	$(PYTHON_INTERPRETER) -m at3_crypto.modeling.train
+
+
+## Forecast next week's Market Risk Index for every token
+.PHONY: predict
+predict:
+	$(PYTHON_INTERPRETER) -m at3_crypto.modeling.predict
+
+
+## Re-run Student D's TOR pipeline end to end (reads the committed snapshot)
+.PHONY: tor
+tor:
+	$(PYTHON_INTERPRETER) -m at3_crypto.modeling.student_d_tor --trials 40
 
 
 #################################################################################
