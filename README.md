@@ -14,7 +14,7 @@
 | **Assessment** | AT3 – Data Product with Machine Learning |
 | **Group** | 08 |
 | **Integration contract** | [`CONTRACT.md`](CONTRACT.md): tokens, feature formulas, API format, errors, conventions |
-| **Shared feature package** | [`mykrml-25740287` v0.3.0](https://test.pypi.org/project/mykrml-25740287/) (TestPyPI) |
+| **Shared feature package** | [`mykrml-25740287` v0.3.0](https://test.pypi.org/project/mykrml-25740287/) (TestPyPI), mirrored by `at3_crypto/engineered_features.py` — kept identical by [`tests/test_feature_parity.py`](tests/test_feature_parity.py) |
 
 ---
 
@@ -116,6 +116,20 @@ uv run jupyter lab
 
 The shared package `mykrml-25740287` is installed from TestPyPI. Only that package uses the TestPyPI index; everything else comes from PyPI. This is configured in `pyproject.toml` (`[tool.uv.sources]`).
 
+The contract's feature formulas exist in two places, and the reason matters for anyone
+reading `at3_crypto/`:
+
+| Implementation | Used by |
+|---|---|
+| `mykrml_25740287.features.crypto` | `at3_crypto/features.py`, `at3_crypto/dataset.py`, Student B's modelling |
+| `at3_crypto/engineered_features.py` | Student D's notebook and pipeline, and vendored verbatim into the Student D FastAPI service |
+
+Student D's service has to be independently deployable, so it cannot install a TestPyPI
+package at runtime — hence the second copy. That turns `CONTRACT.md` §4's "one code path"
+into something that must be verified rather than something the code guarantees, so
+`tests/test_feature_parity.py` compares the two on all 13 contract features across every
+row of the snapshot, values and NaN positions alike. They currently agree exactly.
+
 **Pinned versions, as required by the brief:**
 - Python 3.12.13, pandas 2.2.2, jupyterlab 4.6.1, scikit-learn 1.6.1, matplotlib 3.11.0
 - wandb 0.28.0, lightgbm 4.6.0, xgboost 3.3.0, optuna 4.9.0, lime 0.2.0.1, joblib 1.5.3
@@ -133,10 +147,16 @@ Each student works in their own notebook folder. To reproduce a notebook:
 
 | Notebook | Owner | Artefacts written |
 |---|---|---|
-| `notebooks/student_a/` | Student A | `models/student_a/`, `data/processed/student_a/` |
+| `notebooks/student_a/36120_26SP_AT3_08_13191263_experiment_1.ipynb` (baseline)<br>`..._experiment_2.ipynb` (multi-asset) | Student A | `models/student_a/` |
 | `notebooks/student_b/36120_26SP_AT3_08_25740287_experiment.ipynb` | Student B | `models/student_b/`, `data/processed/student_b/`, `reports/figures/student_b/` |
-| `notebooks/student_c/` | Student C | `models/student_c/`, `data/processed/student_c/` |
 | `notebooks/student_d/36120_26SP_AT3_08_26160438_experiment.ipynb` | Student D | `models/student_d/`, `data/processed/student_d/`, `reports/figures/student_d/` |
+
+**Student C has not contributed to this repository yet** — there is no `notebooks/student_c/`,
+no `models/student_c/` and no `reports/figures/student_c/`. Student A's two notebooks are
+merged with their model artefacts but no `reports/figures/student_a/`, so the figures in
+Student A's report cannot currently be traced back to a run here. Deliverable 1 is a single
+ZIP for the whole group, so both gaps are visible to a marker; they are tracked in
+[`docs/meetings/2026-10-29.md`](docs/meetings/2026-10-29.md) §5.
 
 **The notebooks follow the subject template:**
 - A – project description
@@ -149,7 +169,7 @@ Each student works in their own notebook folder. To reproduce a notebook:
 - J – training and evaluation
 - outcomes and next steps
 
-Both notebooks read the dated Kraken snapshot in `data/raw/`, so their results are reproducible: Kraken only ever
+Every notebook reads the dated Kraken snapshot in `data/raw/`, so results are reproducible: Kraken only ever
 serves the latest 720 candles, so fetching live would move the window and change every number on each re-run. Set
 `REFRESH_DATA = True` in section C.1 to download a new snapshot instead.
 
@@ -180,7 +200,7 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 | Area | Rule |
 |---|---|
 | Data | Kraken public OHLC API, daily USD candles, last 720 complete days. The same source is used for training and serving |
-| Features | Computed only by the shared package, so all four models and services use identical definitions |
+| Features | One definition per formula, with the exact JSON keys in `CONTRACT.md` §4. Students A–C call the published package; Student D's path uses `at3_crypto/engineered_features.py`, because that service vendors its feature code to stay independently deployable and cannot import from TestPyPI at runtime. The two are checked against each other on every contract feature and every snapshot row by `tests/test_feature_parity.py`, so "identical definitions" is enforced rather than assumed |
 | Labels | Index at t+7, created within each token. Inputs use information up to day t only |
 | Split | Chronological by date across all tokens, about 70/15/15, with a **7-day purge gap** before validation and before test. Never random |
 | Tuning | Optuna (TPE, `seed=42`) with 5-fold `TimeSeriesSplit(gap=7)` on the training period only. **Apply the split to the distinct *dates*, not to the rows:** the modelling frame is a panel of 8 tokens per date, so splitting rows cuts it by token (each fold's validation set then spans its own training dates) and `gap=7` purges 7 rows instead of 7 days |
@@ -278,19 +298,33 @@ synced later, so a missing key degrades the tracking rather than failing the tra
 │   └── meetings         <- Meeting minutes (YYYY-MM-DD.md from _template.md)
 ├── models               <- Final model artefacts and metrics, one sub-folder per student
 ├── notebooks            <- Experiment notebooks, one sub-folder per student
-├── references           <- Data dictionaries and API notes
+├── references           <- Data dictionaries and API notes (placeholder; CONTRACT.md §3-§5
+│                           currently holds the pair mapping and the formulas)
 ├── reports
 │   └── figures          <- Figures used in the final report, one sub-folder per student
-├── tests                <- Tests for the shared code and the Student B artefacts
+├── tests                <- Shared code, the Student B artefacts, Student D's pipeline,
+│                           and the parity check between the two feature implementations
 └── at3_crypto           <- Shared project code
     ├── config.py        <- Project paths and .env loading
+    ├── kraken.py        <- Kraken OHLC client: pair mapping, 15-min cache, retries,
+    │                       drops the in-progress candle (CONTRACT.md §3)
     ├── dataset.py       <- Download / load the Kraken snapshot
+    ├── engineered_features.py  <- The 13 contract features (§4) with their exact JSON keys
     ├── features.py      <- Build the labelled Market Risk dataset with the shared package
+    ├── targets.py       <- Target construction and the TOR bands (§5)
     ├── plots.py         <- Reusable report figures
     └── modeling
-        ├── train.py     <- Re-fit and evaluate the selected Student B configuration
-        └── predict.py   <- Forecast next week's risk for every token
+        ├── train.py          <- Re-fit and evaluate the selected Student B configuration
+        ├── predict.py        <- Forecast next week's risk for every token
+        └── student_d_tor.py  <- Student D's full TOR pipeline: purged split, Optuna study,
+                                 baselines, missing-feature augmentation, evaluation,
+                                 degradation table and the metrics.json the API serves
 ```
+
+`kraken.py`, `engineered_features.py` and `targets.py` are the three modules the Student D
+service vendors (as `app/core/data.py`, `features.py` and `target.py`). They are maintained
+here and copied there by that repository's `scripts/sync_core.sh`, never edited on the
+service side.
 
 ---
 
@@ -320,6 +354,17 @@ Student D (`tests/test_student_d.py`):
 - **The metrics:** F1 averages over all five labels, and probabilities are widened to all five even when a rating is
   absent from training.
 
+Both implementations of CONTRACT.md §4 (`tests/test_feature_parity.py`):
+- **The names:** every contract feature exists under its exact JSON key on both sides. This is the
+  check that `VolumeSMA20` has not become `SMA20Volume` on one side only — a rename that made
+  Student D's published feature unreadable by every consumer once already.
+- **The values:** all 13 features compared across every row of the snapshot, requiring an
+  **exact** match, not a tolerance — both are pandas rolling windows over identical inputs, so
+  any difference means the definitions have genuinely diverged.
+- **The NaN positions:** a different warm-up length or grouping changes how many rows each model
+  can train on, so a mismatch there is caught separately from a value mismatch.
+- The suite itself is guarded: an empty or partial overlap would otherwise pass silently.
+
 The shared package has its own suite of 48 tests in its repository.
 
 ---
@@ -329,7 +374,7 @@ The shared package has its own suite of 48 tests in its repository.
 - **Protected `main`:** direct pushes are blocked. Every change needs a pull request with at least one approving review.
 - **Branch names:** `student-<a|b|c|d>/<topic>` (for example `student-b/mri-experiment`), or `setup/<topic>` for shared work.
 - **Merging experiments:** each student merges their best experiment into `main` through a pull request.
-- **Escalation:** under `CONTRACT.md` §11, if no review arrives within 24 hours and a milestone is at risk, the group lead may merge with the owner's bypass. The reason and the passing checks are recorded on the pull request.
+- **Escalation:** if no review arrives within 24 hours and a milestone is at risk, the group lead may merge with the owner's bypass, recording the reason and the passing checks on the pull request. **This is a working convention, not a contract clause.** Earlier versions of this section cited `CONTRACT.md` §11; `CONTRACT.md` has sections 1–10 and no §11, so the clause could not be invoked when it was actually needed on 29 Oct (see [`docs/meetings/2026-10-29.md`](docs/meetings/2026-10-29.md) §1). Adding it to the contract is action item 23.
 - **Contract changes:** any change to `CONTRACT.md` goes through a pull request, and its change log records every version.
 - **Meetings:** minuted in `docs/meetings/YYYY-MM-DD.md`, using [`_template.md`](docs/meetings/_template.md). Each record covers attendance, decisions, and action items with an owner and due date.
 
@@ -338,7 +383,7 @@ The shared package has its own suite of 48 tests in its repository.
 ## 14. Reproducibility checklist
 
 - [x] Pinned Python and package versions (`.python-version`, `pyproject.toml`, `uv.lock`, `requirements.txt`)
-- [x] Dated data snapshot committed. Both notebooks read it unless `REFRESH_DATA = True`
+- [x] Dated data snapshot committed. Every notebook reads it unless `REFRESH_DATA = True`
 - [x] Fixed seeds (42) and deterministic LightGBM (`deterministic=True`, `force_row_wise=True`)
 - [x] Every quoted figure in the notebooks is interpolated from the run, never transcribed, so prose cannot drift from results
 - [x] No hard-coded local paths. All paths are built from the project root (`at3_crypto/config.py`)
