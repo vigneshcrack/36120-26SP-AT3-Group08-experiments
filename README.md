@@ -149,10 +149,10 @@ Each student works in their own notebook folder. To reproduce a notebook:
 |---|---|---|
 | `notebooks/student_a/36120_26SP_AT3_08_13191263_experiment_1.ipynb` (baseline)<br>`..._experiment_2.ipynb` (multi-asset) | Student A | `models/student_a/` |
 | `notebooks/student_b/36120_26SP_AT3_08_25740287_experiment.ipynb` | Student B | `models/student_b/`, `data/processed/student_b/`, `reports/figures/student_b/` |
+| `notebooks/student_c/36120_26SP_AT3_08_25980436_experiment.ipynb` | Student C | `models/student_c/`, `data/processed/student_c/`, `reports/figures/student_c/` |
 | `notebooks/student_d/36120_26SP_AT3_08_26160438_experiment.ipynb` | Student D | `models/student_d/`, `data/processed/student_d/`, `reports/figures/student_d/` |
 
-**Student C has not contributed to this repository yet** — there is no `notebooks/student_c/`,
-no `models/student_c/` and no `reports/figures/student_c/`. Student A's two notebooks are
+** Student A's two notebooks are
 merged with their model artefacts but no `reports/figures/student_a/`, so the figures in
 Student A's report cannot currently be traced back to a run here. Deliverable 1 is a single
 ZIP for the whole group, so both gaps are visible to a marker; they are tracked in
@@ -186,6 +186,7 @@ The `at3_crypto` package provides scripts for each pipeline step, so the main st
 | `make evaluate` | Re-fits the selected Student B configuration on train + validation and scores the test period. It reproduces **MAE 3.70 vs 3.91 for persistence** |
 | `make train` | Re-fits both Student B models on all labelled data and writes `models/student_b/mri_lightgbm_retrained.joblib`. The official bundle is not touched |
 | `make predict` | Forecasts next week's Market Risk Index for every token with the saved bundle |
+| `uv run python -m at3_crypto.modeling.student_c_tc --trials 50` | Re-runs Student C's full TC pipeline (feature-set ablation, 2 × 50 Optuna trials, validation-based selection, refit, evaluation) and rewrites `models/student_c/` |
 | `make tor` | Re-runs Student D's full TOR pipeline (split, 40 Optuna trials, refit, evaluation) and rewrites `models/student_d/` |
 | `make test` / `make lint` / `make format` | Runs the tests, checks the code style, or reformats the code |
 
@@ -212,7 +213,7 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 
 ---
 
-## 8. Results – Student B (Market Risk Index)
+## 8a. Results – Student B (Market Risk Index)
 
 | Item | Result |
 |---|---|
@@ -232,7 +233,7 @@ These rules are agreed in `CONTRACT.md` §8 and apply to every model.
 
 ---
 
-## 9. Results – Student D (Trading Opportunity Rating)
+## 8b. Results - Student D (Trading Opportunity Rating)
 
 | Item | Result |
 |---|---|
@@ -264,8 +265,102 @@ The Optuna trials are logged to Weights & Biases under the project `WANDB_PROJEC
 synced later, so a missing key degrades the tracking rather than failing the training.
 
 ---
+## 8c. Results – Student C (Trend Category)
 
-## 10. Data management
+| Item | Result |
+|---|---|
+| Target | Trend Category at **t+7** from TrendScore = 0.7·(MA5/MA20 − 1) + 0.3·Return20, cut into 5 classes (Strong Downtrend < −0.10 ≤ Downtrend < −0.02 ≤ Sideways ≤ 0.02 < Uptrend ≤ 0.10 < Strong Uptrend) |
+| Data | 8 tokens × 720 days → 5,544 labelled token-days (5,432 after purge gaps) |
+| Split | Train 3,888 (22 Nov 2024 – 22 Mar 2026) · validation 776 (30 Mar – 4 Jul 2026) · test 768 (12 Jul – 15 Oct 2026), with 7-day purge gaps |
+| Selected inputs | Return20, Return5 (Student A), MA5_MA20_Ratio and today's TrendScore (from Student B's MA5/MA20 + A's Return20), and **TrendScoreProj7** (Student C's own engineered feature) |
+| Final model | XGBoost 5-class classifier (`multi:softprob`, `hist`), refit on train + validation with missing-feature augmentation |
+| Optuna | Two 50-trial TPE studies (seed 42), with and without class balancing, TimeSeriesSplit(5, gap=7) over the training **dates**; winner chosen on validation |
+| **Test** | **macro-F1 0.4776, balanced accuracy 0.4621, accuracy 0.5417, within-one-class 0.8932, log-loss 1.123, ECE 0.049** |
+| Baselines | flat-price projection 0.4679 · persistence 0.4675 · default XGBoost 0.4284 · stratified random 0.1708 · majority class 0.0718 |
+| Resilience | macro-F1 0.478 all peers up · 0.435 Student A down · 0.484 Student B down · 0.484 both down |
+| Outcome | Hypothesis partially confirmed. Beats every baseline on macro-F1 and balanced accuracy, with well-calibrated confidence and strong peer-failure resilience, but the margin over persistence and the projection rule is small |
+
+### The key engineered feature – `TrendScoreProj7`
+
+On day *t*, 13 of the 20 closes inside MA20(t+7), and the base price of Return20(t+7), are already known. Assuming the next 7 closes equal today's close gives a leakage-free projection of next week's TrendScore:
+
+```
+MA5(t+7)      = C_t
+MA20(t+7)     = (C_t-12 + … + C_t + 7·C_t) / 20
+Return20(t+7) = C_t / C_t-13 − 1
+```
+
+Correlation with the true TrendScore(t+7) rises from **0.699** (today's TrendScore) to **0.773**, and as a stand-alone rule it agrees with the true class on 59 % of rows vs 51 % for persistence. It is computed by the Student C service from Kraken closes, so it is available even when Students A and B are both down. It is also the model's most important input (44 % of total gain).
+
+### Feature selection (fixed screening configuration, test set untouched)
+
+| Feature set | Inputs | CV macro-F1 | Validation macro-F1 |
+|---|---|---|---|
+| A – required, raw | Return20, MA5, MA20 | 0.265 | 0.308 |
+| B – raw + everything | A + ratio, TrendScore, Vol20, MaxDrawdown, GapRisk, Return5, Proj7 | 0.366 | 0.392 |
+| **C – scale-free core (selected)** | Return20, MA5_MA20_Ratio, TrendScore, Return5, TrendScoreProj7 | **0.401** | **0.437** |
+| D – C + MA/close + Volatility20 | | 0.385 | 0.413 |
+| E – C + MA/close + all own features | | 0.376 | 0.407 |
+
+Rule baselines on the same CV folds: persistence 0.375, flat-price projection 0.422.
+
+MA5 and MA20 are price levels that differ by five orders of magnitude between coins (DOGE ≈ 0.2 USD, BTC ≈ 80,000 USD). In a pooled model they act as a coin identifier, so they are used through their scale-free ratio and through TrendScore. Volatility20, MaxDrawdown and GapRisk added redundancy, not signal; they remain published on Student C's `/features` for the other services.
+
+### Model selection and hyperparameters
+
+| Study | Best CV macro-F1 | Validation macro-F1 |
+|---|---|---|
+| **No class balancing (selected)** | **0.4180** | **0.4473** |
+| Balanced sample weights | 0.4057 | 0.3880 |
+
+Selected parameters: learning_rate 0.222, max_depth 5, min_child_weight 2.37, subsample 0.50, colsample_bytree 0.89, gamma 4.36, reg_alpha 0.089, reg_lambda 0.324, n_estimators 102. No early stopping is used (`n_estimators` is searched instead), so no fold is scored on rows it stopped on.
+
+### Test results in detail
+
+| Class | Recall | Precision |
+|---|---|---|
+| Strong Downtrend | 0.133 | 0.667 |
+| Downtrend | 0.667 | 0.481 |
+| Sideways | 0.410 | 0.604 |
+| Uptrend | 0.699 | 0.497 |
+| Strong Uptrend | 0.402 | 0.815 |
+
+- **Errors are mostly one class out:** 89 % of forecasts are the right class or a neighbour. Opposite-direction errors (an up class predicted for a down outcome, or the reverse) are 70 of 768 (9.1 %).
+- **Strong Downtrend** is only 1.9 % of the test period (12.4 % of training), so its recall is noisy.
+- **Calibration:** ECE 0.049, so the confidence shown in the app closely matches how often the model is right.
+- **Per token macro-F1:** XRP 0.491 · ETH 0.456 · BTC 0.415 · SOL 0.369 · DOGE 0.363 · XLM 0.341 · XMR 0.280 · TRX 0.221. Low-volatility coins rarely reach the strong classes, so one wrong strong call weighs heavily.
+- **Gain importance:** TrendScoreProj7 0.436 · MA5_MA20_Ratio 0.194 · Return20 0.139 · Return5 0.116 · TrendScore 0.116.
+
+### Missing-feature augmentation (CONTRACT.md §7)
+
+| Training | All peers up | Student A down | Student B down |
+|---|---|---|---|
+| Without augmentation | 0.437 | 0.331 | 0.396 |
+| **With augmentation (deployed)** | **0.478** | **0.435** | **0.484** |
+
+Augmentation improved the healthy case as well as the degraded ones.
+
+### Reproduce
+
+```bash
+uv run python -m at3_crypto.modeling.student_c_tc --trials 50   # or run the notebook top to bottom
+uv run pytest tests/test_student_c.py
+```
+
+Re-running the notebook reproduces the committed artefacts exactly (same metrics and best parameters).
+
+**Artefacts:**
+- `models/student_c/tc_xgboost.joblib` (+ `tc_xgboost.json`, XGBoost native format): the fitted classifier, feature list and labels.
+- `models/student_c/metrics.json`: all metadata, served by the API's `GET /model-metadata`.
+- `reports/figures/student_c/`: the 13 report figures (target distribution, transition matrix, feature EDA, feature-set ablation, projection, split, Optuna history, test diagnostics, degradation).
+- `notebooks/student_c/36120_26SP_AT3_08_25980436_experiment.ipynb`: the full experiment.
+
+**Deployment:** [Student C API](https://three6120-26sp-at3-group08-studentc-api.onrender.com) · repo `nandeeswari19-web/36120-26SP-AT3-Group08-StudentC-api`
+
+---
+
+
+## 9. Data management
 
 | Location | Content | In Git? |
 |---|---|---|
@@ -279,7 +374,7 @@ synced later, so a missing key degrades the tracking rather than failing the tra
 
 ---
 
-## 11. Project organisation
+## 10. Project organisation
 
 ```
 ├── CONTRACT.md          <- Group integration contract shared by all four services
@@ -328,7 +423,7 @@ service side.
 
 ---
 
-## 12. Testing and code quality
+## 11. Testing and code quality
 
 ```bash
 make test      # = uv run pytest tests
@@ -367,9 +462,13 @@ Both implementations of CONTRACT.md §4 (`tests/test_feature_parity.py`):
 
 The shared package has its own suite of 48 tests in its repository.
 
+Student C (`tests/test_student_c.py`):
+- **The TC bands:** every boundary in CONTRACT.md §5, including that Sideways is closed on both ends, plus NaN handling.
+- **The t+7 label:** equals TC seven rows later, per token;
+
 ---
 
-## 13. Collaboration workflow
+## 12. Collaboration workflow
 
 - **Protected `main`:** direct pushes are blocked. Every change needs a pull request with at least one approving review.
 - **Branch names:** `student-<a|b|c|d>/<topic>` (for example `student-b/mri-experiment`), or `setup/<topic>` for shared work.
@@ -380,7 +479,7 @@ The shared package has its own suite of 48 tests in its repository.
 
 ---
 
-## 14. Reproducibility checklist
+## 13. Reproducibility checklist
 
 - [x] Pinned Python and package versions (`.python-version`, `pyproject.toml`, `uv.lock`, `requirements.txt`)
 - [x] Dated data snapshot committed. Every notebook reads it unless `REFRESH_DATA = True`
@@ -395,7 +494,7 @@ The shared package has its own suite of 48 tests in its repository.
 
 ---
 
-## 15. Troubleshooting
+## 14. Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
@@ -407,6 +506,6 @@ The shared package has its own suite of 48 tests in its repository.
 
 ---
 
-## 16. AI usage acknowledgement
+## 15. AI usage acknowledgement
 
 Generative AI (Claude) was used to support planning, coding and documentation, in line with the subject's AI usage policy. All generated content was reviewed, executed and validated by the group members, who take full responsibility for it and can explain and justify every design decision.
