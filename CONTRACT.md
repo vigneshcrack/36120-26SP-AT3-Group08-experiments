@@ -1,8 +1,8 @@
-# Group 08 – Service & Feature Contract (v0.1 – DRAFT for approval)
+# Group 08 – Service & Feature Contract (v0.3)
 
 This document is the single source of truth that lets four independently built FastAPI
 services and one Streamlit app work together. **Any change requires a pull request
-approved by all four members.** Proposed by Vignesh Selvam (Student B), 20 Oct 2026.
+(see §11 for review and merge rules).** Proposed by Vignesh Selvam (Student B), 20 Oct 2026.
 
 ---
 
@@ -294,14 +294,14 @@ fastapi[standard] 0.139.0 · uvicorn 0.50.0 · joblib 1.5.3 · xgboost 3.3.0 · 
 
 ## 10. Repositories, deployments and milestones
 
-| Component | Repo name | Deployment URL |
+| Component | Repository | Deployment URL |
 |---|---|---|
-| Experiments | `36120-26SP-AT3-Group08-experiments` | – |
-| Streamlit | `36120-26SP-AT3-Group08-streamlit` | _TBC_ |
-| Student A API | `36120-26SP-AT3-Group08-StudentA-api` | _TBC_ |
-| Student B API | `36120-26SP-AT3-Group08-StudentB-api` | _TBC_ |
-| Student C API | `36120-26SP-AT3-Group08-StudentC-api` |`https://three6120-26sp-at3-group08-studentc-api.onrender.com/`|
-| Student D API | `36120-26SP-AT3-Group08-StudentD-api` | _TBC_ |
+| Experiments | [`vigneshcrack/36120-26SP-AT3-Group08-experiments`](https://github.com/vigneshcrack/36120-26SP-AT3-Group08-experiments) | – |
+| Streamlit | [`vigneshcrack/36120-26SP-AT3-Group08-streamlit`](https://github.com/vigneshcrack/36120-26SP-AT3-Group08-streamlit) | https://group08-crypto-intelligence.streamlit.app |
+| Student A API | [`rmcruikshank/36120-26SP-AT3-StudentA-api`](https://github.com/rmcruikshank/36120-26SP-AT3-StudentA-api) | https://group08-studenta-api-api.onrender.com |
+| Student B API | [`vigneshcrack/36120-26SP-AT3-Group08-StudentB-api`](https://github.com/vigneshcrack/36120-26SP-AT3-Group08-StudentB-api) | https://group08-studentb-mri-api.onrender.com |
+| Student C API | [`nandeeswari19-web/36120-26SP-AT3-Group08-StudentC-api`](https://github.com/nandeeswari19-web/36120-26SP-AT3-Group08-StudentC-api) | https://three6120-26sp-at3-group08-studentc-api.onrender.com |
+| Student D API | [`VincentBui25/36120-26SP-AT3-Group08-StudentD-api`](https://github.com/VincentBui25/36120-26SP-AT3-Group08-StudentD-api) | https://three6120-26sp-at3-group08-studentd-api-1.onrender.com |
 
 All six repositories are private, give administrator access to the nine teaching staff
 listed in the brief, and protect `main` (pull request + 1 approval).
@@ -314,3 +314,22 @@ listed in the brief, and protect `main` (pull request + 1 approval).
 | Tue 27 Oct | All `/predict` endpoints live; Streamlit integrated and deployed |
 | Wed 28 Oct | Report draft complete; full end-to-end testing |
 | Thu 29 Oct | Final checks, ZIPs and submission (before 23:59) |
+
+---
+
+## 11. Code review and merge policy
+
+| Rule | Agreed value |
+|---|---|
+| Protected branches | `main` of the experiments and Streamlit repositories: no direct pushes; changes only through a pull request with **1 approving review** from another member |
+| Review window | Reviews are requested in the group chat when the PR is opened. A reviewer should approve or comment within **24 hours** |
+| Deadline escalation | If no review has been given after 24 hours and a milestone in §10 is at risk, the group lead (Vignesh Selvam, Student B) may merge with the repository owner's admin bypass. The PR must then carry a comment stating that it was merged without review, why, and which tests passed; the PR stays open for post-merge review, and any issue raised is fixed in a follow-up PR |
+| Minimum checks before any merge | `uv run pytest` passes and `uv run ruff check .` is clean; deployed services still answer `/health` |
+| Record keeping | Every PR, approval, bypass and follow-up is listed in the meeting minutes (`docs/meetings/`) and summarised in the report's collaboration section, exactly as it happened |
+
+### Change log
+| Version | Date | Change |
+|---|---|---|
+| 0.1 | 20 Oct 2026 | Initial draft (Student B) |
+| 0.2 | 25 Oct 2026 | Added §11 code review and merge policy; student IDs confirmed (A 13191263, B 25740287, C 25980436, D 26160438) |
+| 0.3 | 31 Oct 2026 | §10 updated with all repositories and live deployment URLs |
